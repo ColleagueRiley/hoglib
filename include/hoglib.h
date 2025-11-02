@@ -6,7 +6,7 @@
 * combines serveral of my lightweight libraries into one cohesive library
 *
 
-* Copyright (C) 2022-25 Riley Mabb (@ColleagueRiley)
+* Copyright (C) 2025 Riley Mabb (@ColleagueRiley)
 *
 * libpng license
 *
@@ -106,6 +106,39 @@ typedef enum hl_subsystems {
 
 /*! @brief function pointer equivalent of void* */
 typedef void (*hl_proc)(void);
+
+typedef enum hl_textureFormat {
+	hl_formatNone = 0,
+	hl_formatRGB,    /*!< 8-bit RGB (3 channels) */
+    hl_formatBGR,    /*!< 8-bit BGR (3 channels) */
+	hl_formatRGBA,   /*!< 8-bit RGBA (4 channels) */
+    hl_formatBGRA,   /*!< 8-bit BGRA (4 channels) */
+    hl_formatRed,   /*!< 8-bit RED (1 channel) */
+    hl_formatGrayscale,   /*!< 8-bit grayscale (1 channel) */
+    hl_formatGrayscaleAlpha,   /*!< 8-bit grayscale alpha (1 channel) */
+	hl_formatCount
+} hl_textureFormat;
+
+typedef enum hl_textureDataType {
+	hl_textureDataInt = 0,
+	hl_textureDataFloat
+} hl_textureDataType;
+
+typedef enum hl_textureFilter {
+	hl_filterNearest = 0,
+	hl_filterLinear
+} hl_textureFilter;
+
+typedef struct hl_textureBlob {
+	void* data; /* input data */
+	size_t width; /* width of the texture */
+	size_t height; /* height of the texture */
+	hl_textureDataType dataType;
+	hl_textureFormat dataFormat; /* format of the input data */
+	hl_textureFormat textureFormat; /* final format for the texture */
+	hl_textureFilter minFilter; /* filter used when rendering a surface smaller than the base texture */
+	hl_textureFilter magFilter;  /* filter used when rendering a surface bigger than the base texture */
+} hl_textureBlob;
 
 /*
  * Windowing subsystem types
@@ -485,6 +518,9 @@ typedef enum hl_rendererType {
 /* handle to the source RSGL renderer */
 typedef void* hl_rendererHandle;
 
+/* handle to a texture resource */
+typedef void* hl_textureHandle;
+
 typedef struct hl_rect { float x, y, w, h; } hl_rect;
 
 #define HL_RECT(x, y, w, h) (hl_rect){(float)x, (float)y, (float)w, (float)h}
@@ -790,34 +826,6 @@ HL_API bool hl_window_getMouse(hl_windowHandle window, int32_t* x, int32_t* y);
 */
 HL_API void hl_window_getSize(hl_windowHandle window, int32_t* width, int32_t* height);
 
-/* OpenGL Native API */
-
-/**!
- * @brief Swaps the OpenGL buffers for the specified window.
- * @param handle to the window object
-*/
-HL_API void hl_window_swapBuffers_OpenGL(hl_windowHandle window);
-
-/**!
- * @brief Retrieves the address of a native OpenGL procedure.
- * @param procname The name of the OpenGL function to look up.
- * @return A pointer to the function, or NULL if not found.
-*/
-HL_API hl_proc hl_getProcAddress_OpenGL(const char* procname);
-
-/**!
- * @brief make the window this current OpenGL context
- * @param handle to the window object
-*/
-HL_API void hl_window_makeCurrentContext_OpenGL(hl_windowHandle window);
-
-/**!
- * @brief Sets the OpenGL swap interval (vsync).
- * @param swapInterval The desired swap interval value (0 to disable vsync, 1 to enable).
- * @param handle to the window object
-*/
-HL_API void hl_window_swapInterval_OpenGL(hl_windowHandle window, int32_t swapInterval);
-
 /*
  * Rendering API
  * these are functions for Hoglib's rendering subsystem
@@ -858,6 +866,27 @@ HL_API void hl_renderer_clear(hl_rendererHandle renderer, hl_color color);
  * @param handle to the window object
 */
 HL_API void hl_renderer_setWindow(hl_rendererHandle renderer, hl_windowHandle window);
+
+/**!
+ * @brief create texture from raw image data
+ * @param blob of texture data
+ * @return handle to the created texture resource
+*/
+HL_API hl_textureHandle hl_createTextureFromBlob(hl_rendererHandle renderer, const hl_textureBlob* blob);
+
+/**!
+ * @brief create texture from a image file
+ * @param file name string
+ * @return handle to the created texture resource
+*/
+HL_API hl_textureHandle hl_renderer_createTextureFromImage(hl_rendererHandle renderer, const char* file);
+
+/**!
+ * @brief set texture to use for rendering
+ * @param handle renderer object
+ * @param handle to the texture resource
+*/
+HL_API void hl_renderer_setTexture(hl_rendererHandle renderer, hl_textureHandle texture);
 
 /**!
  * @brief set draw foreground color

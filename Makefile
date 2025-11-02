@@ -31,7 +31,7 @@ endif
 
 LIBS = -Iinclude  -Lbuild ./build/libhoglib.a $(RGFW_LIBS)
 
-EXAMPLES = examples/basics/simple
+EXAMPLES = examples/basics/basic
 
 
 all: $(TARGET) $(OUTDIR)/libhoglib.a $(EXAMPLES)
@@ -41,6 +41,7 @@ debug: all
 		echo "Running $$exe..."; \
 		./$$exe; \
 	done
+	make clean
 
 $(OUTDIR)/libhoglib.a: $(OBJECTS) | $(OUTDIR)
 	$(AR) rcs $@ $(OBJECTS)
@@ -68,6 +69,7 @@ $(OUTDIR):
 
 clean:
 	rm -rf $(OUTDIR)
-	rm -f source/*.o
+	rm -f source/*.o $(EXAMPLES)
+
 
 .PHONY: all clean
