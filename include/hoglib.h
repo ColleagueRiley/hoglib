@@ -62,6 +62,10 @@
 	#define HL_API
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* useful macros
  * these are macros I find useful for the Hoglib header
 */
@@ -154,17 +158,19 @@ typedef enum hl_windowFlags {
 	hl_windowFullscreen = HL_BIT(4), /*!< the window is fullscreen by default */
 	hl_windowTransparent = HL_BIT(5), /*!< the window is transparent (only properly works on X11 and MacOS, although it's meant for for windows) */
 	hl_windowCenter = HL_BIT(6), /*! center the window on the screen */
-	hl_windowScaleToMonitor = HL_BIT(8), /*! scale the window to the screen */
-	hl_windowHide = HL_BIT(9), /*! the window is hidden */
-	hl_windowMaximize = HL_BIT(10),
-	hl_windowCenterCursor = HL_BIT(11),
-	hl_windowFloating = HL_BIT(12), /*!< create a floating window */
-	hl_windowFocusOnShow = HL_BIT(13), /*!< focus the window when it's shown */
-	hl_windowMinimize = HL_BIT(14), /*!< focus the window when it's shown */
-	hl_windowFocus = HL_BIT(15), /*!< if the window is in focus */
-	hl_windowOpenGL = HL_BIT(17), /*!< create an OpenGL context (you can also do this manually with hl_window_createContext_OpenGL) */
-	hl_windowEGL = HL_BIT(18), /*!< create an EGL context (you can also do this manually with hl_window_createContext_EGL) */
-	hl_windowedFullscreen = hl_windowNoBorder | hl_windowMaximize
+	hl_windowScaleToMonitor = HL_BIT(7), /*! scale the window to the screen */
+	hl_windowHide = HL_BIT(8), /*! the window is hidden */
+	hl_windowMaximize = HL_BIT(9),
+	hl_windowCenterCursor = HL_BIT(10),
+	hl_windowFloating = HL_BIT(11), /*!< create a floating window */
+	hl_windowFocusOnShow = HL_BIT(12), /*!< focus the window when it's shown */
+	hl_windowMinimize = HL_BIT(13), /*!< focus the window when it's shown */
+	hl_windowFocus = HL_BIT(14), /*!< if the window is in focus */
+	hl_windowedFullscreen = hl_windowNoBorder | hl_windowMaximize,
+
+	/* renderer flags */
+	hl_windowOpenGLLegacy = HL_BIT(15), /*!< use the modern OpenGL renderer */
+	hl_windowOpenGLModern = HL_BIT(16), /*!< use the legacy OpenGL renderer */
 } hl_windowFlags;
 
 /* handle to the source RGFW window */
@@ -545,6 +551,19 @@ typedef struct hl_color {
  * these functions are used across the entire Hoglib API
 */
 
+/**!
+ * @brief fetch the current time
+ * @param key the key code of the key you want to check
+ * @return the time in seconds
+*/
+HL_API double hl_getTime(void);
+
+/**!
+ * @brief sleep (wait) for a given amount of time
+ * @param the amount of time to sleep in seconds
+*/
+HL_API void hl_sleep(double seconds);
+
 /*
  * Windowing API
  * these functions are used across the entire Hoglib API
@@ -624,13 +643,13 @@ HL_API void hl_getMouseVector(float* x, float* y);
  * @param w the requested width of the window
  * @param h the requested height of the window
  * @param flags extra arguments ((u32)0 means no flags used)
- * @return A pointer to the newly created window structure
+ * @return A handle to the newly created window structure
 */
 HL_API hl_windowHandle hl_window_init(const char* name, int32_t x, int32_t y, int32_t width, int32_t height, hl_windowFlags flags);
 
 /**!
  * @brief closes the window and frees its associated structure
- * @param win a pointer to the target window
+ * @param win a handle to the target window
 */
 HL_API void hl_window_close(hl_windowHandle window);
 
@@ -645,7 +664,7 @@ HL_API bool hl_window_shouldClose(hl_windowHandle window);
 /**!
  * @brief polls and pops the next event from the window's event queue
  * @param handle to the window object
- * @param event [OUTPUT] a pointer to store the retrieved event
+ * @param event [OUTPUT] a handle to store the retrieved event
  * @return hl_TRUE if an event was found, hl_FALSE otherwise
  *
  * NOTE: Using this function without a loop may cause event lag.
@@ -662,7 +681,7 @@ HL_API bool hl_window_checkEvent(hl_windowHandle window, hl_event* event);
 /**!
  * @brief pops the first queued event for the window
  * @param handle to the window object
- * @param event [OUTPUT] a pointer to store the retrieved event
+ * @param event [OUTPUT] a handle to store the retrieved event
  * @return hl_TRUE if an event was found, hl_FALSE otherwise
 */
 HL_API bool hl_window_checkQueuedEvent(hl_windowHandle window, hl_event* event);
@@ -671,7 +690,7 @@ HL_API bool hl_window_checkQueuedEvent(hl_windowHandle window, hl_event* event);
 * @{ */
 /**!
  * @brief Sets the callback function to handle debug messages from RGFW.
- * @param func The function pointer to be used as the debug callback.
+ * @param func The function handle to be used as the debug callback.
  * @return The previously set debug callback function.
 */
 HL_API hl_debugfunc hl_setDebugCallback(hl_debugfunc func);
@@ -812,8 +831,8 @@ HL_API hl_scaleUpdatedfunc hl_setScaleUpdatedCallback(hl_scaleUpdatedfunc func);
 /**!
  * @brief Retrieves the mouse position relative to the window.
  * @param handle to the window object
- * @param x [OUTPUT] Pointer to store the X position within the window.
- * @param y [OUTPUT] Pointer to store the Y position within the window.
+ * @param x [OUTPUT] handle to store the X position within the window.
+ * @param y [OUTPUT] handle to store the Y position within the window.
  * @return True if the position was successfully retrieved.
 */
 HL_API bool hl_window_getMouse(hl_windowHandle window, int32_t* x, int32_t* y);
@@ -821,10 +840,17 @@ HL_API bool hl_window_getMouse(hl_windowHandle window, int32_t* x, int32_t* y);
 /**!
  * @brief fetch the window size
  * @param handle to the window object
- * @param [OUTPUT] pointer to int width part
- * @param [OUTPUT] pointer to int height part
+ * @param [OUTPUT] handle to int width part
+ * @param [OUTPUT] handle to int height part
 */
 HL_API void hl_window_getSize(hl_windowHandle window, int32_t* width, int32_t* height);
+
+/**!
+ * @brief fetch the window's renderer object
+ * @param the source window
+ * @return returns a handle to the window's renderer object
+*/
+HL_API hl_rendererHandle hl_window_getRenderer(hl_windowHandle window);
 
 /*
  * Rendering API
@@ -837,7 +863,7 @@ HL_API void hl_window_getSize(hl_windowHandle window, int32_t* width, int32_t* h
  * @return returns a handle (or NULL on failure) to the renderer
 */
 
-HL_API hl_rendererHandle hl_renderer_init(hl_rendererType type);
+HL_API hl_rendererHandle hl_renderer_init(hl_rendererType type, hl_windowHandle window);
 HL_API void hl_renderer_free(hl_rendererHandle handle);
 
 /**!
@@ -861,14 +887,8 @@ HL_API void hl_renderer_finish(hl_rendererHandle renderer);
 HL_API void hl_renderer_clear(hl_rendererHandle renderer, hl_color color);
 
 /**!
- * @brief set window surface to render to
- * @param handle renderer object
- * @param handle to the window object
-*/
-HL_API void hl_renderer_setWindow(hl_rendererHandle renderer, hl_windowHandle window);
-
-/**!
  * @brief create texture from raw image data
+ * @param handle to the renderer object
  * @param blob of texture data
  * @return handle to the created texture resource
 */
@@ -876,10 +896,17 @@ HL_API hl_textureHandle hl_createTextureFromBlob(hl_rendererHandle renderer, con
 
 /**!
  * @brief create texture from a image file
+ * @param handle to the renderer object
  * @param file name string
  * @return handle to the created texture resource
 */
 HL_API hl_textureHandle hl_renderer_createTextureFromImage(hl_rendererHandle renderer, const char* file);
+
+/**!
+ * @brief create texture from a image file
+ * @param handle to texture resource
+*/
+HL_API void hl_renderer_freeTexture(hl_rendererHandle renderer, hl_textureHandle texture);
 
 /**!
  * @brief set texture to use for rendering
@@ -901,5 +928,9 @@ HL_API void hl_renderer_setColor(hl_rendererHandle renderer, hl_color color);
  * @param rect object
 */
 HL_API void hl_renderer_drawRect(hl_rendererHandle renderer, hl_rect rect);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

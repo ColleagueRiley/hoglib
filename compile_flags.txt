@@ -1,0 +1,7 @@
+-D RGFW_IMPLEMENTATION
+-D RGFW_OPENGL
+-D RSGL_IMPLEMENTATION
+
+-I./include
+-I./source/
+-I./source/external/

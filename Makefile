@@ -61,8 +61,8 @@ $(OUTDIR)/%.o: source/%.c | $(OUTDIR)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(EXAMPLES): %: %.c
-	$(CC) $^ $(LIBS) -o $@
+$(EXAMPLES): %: %.c $(OUTDIR)/libhoglib.a
+	$(CC) $< $(LIBS) -o $@
 
 $(OUTDIR):
 	mkdir -p $(OUTDIR)

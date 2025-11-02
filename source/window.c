@@ -1,3 +1,4 @@
+#include "hoglib.h"
 #include "internal.h"
 
 #ifndef RGFW_IMPLEMENTATION
@@ -7,13 +8,59 @@
 
 #include "RGFW.h"
 
+void hl_window_setRenderer(hl_windowHandle window, hl_rendererHandle renderer) {
+	((RGFW_window*)window)->userPtr = renderer;
+}
+
+hl_rendererHandle hl_window_getRenderer(hl_windowHandle window) {
+	return ((RGFW_window*)window)->userPtr;
+}
+
+void hl_resizeHandler(RGFW_window* win, int32_t w, int32_t h)  {
+	hl_renderer_updateSize(hl_window_getRenderer(win));
+}
 
 void hl_pollEvents(void) {
 	RGFW_pollEvents();
 }
 
 hl_windowHandle hl_window_init(const char* name, int32_t x, int32_t y, int32_t width, int32_t height, hl_windowFlags flags) {
-	RGFW_window* window = RGFW_createWindow(name, 0, 0, width, height, flags);
+	RGFW_windowFlags win_flags = 0;
+	if (flags & hl_windowNoBorder) win_flags |= RGFW_windowNoBorder;
+	if (flags & hl_windowNoResize) win_flags |= RGFW_windowNoResize;
+	if (flags & hl_windowAllowDND) win_flags |= RGFW_windowAllowDND;
+	if (flags & hl_windowHideMouse) win_flags |= RGFW_windowHideMouse;
+	if (flags & hl_windowFullscreen) win_flags |= RGFW_windowFullscreen;
+	if (flags & hl_windowTransparent) win_flags |= RGFW_windowTransparent;
+	if (flags & hl_windowCenter) win_flags |= RGFW_windowCenter;
+	if (flags & hl_windowScaleToMonitor) win_flags |= RGFW_windowScaleToMonitor;
+	if (flags & hl_windowHide) win_flags |= RGFW_windowHide;
+	if (flags & hl_windowMaximize) win_flags |= RGFW_windowMaximize;
+	if (flags & hl_windowCenterCursor) win_flags |= RGFW_windowCenterCursor;
+	if (flags & hl_windowFloating) win_flags |= RGFW_windowFloating;
+	if (flags & hl_windowFocusOnShow) win_flags |= RGFW_windowFocusOnShow;
+	if (flags & hl_windowMinimize) win_flags |= RGFW_windowMinimize;
+	if (flags & hl_windowFocus) win_flags |= RGFW_windowFocus;
+	if (flags & hl_windowedFullscreen) win_flags |= RGFW_windowedFullscreen;
+
+	if (flags & hl_windowOpenGLLegacy) win_flags |= RGFW_windowOpenGL;
+	if (flags & hl_windowOpenGLModern) win_flags |= RGFW_windowOpenGL;
+
+
+	RGFW_window* window = RGFW_createWindow(name, x, y, width, height, win_flags);
+	RGFW_setWindowResizedCallback(hl_resizeHandler);
+
+	hl_rendererType type = -1;
+
+	if (flags & hl_windowOpenGLLegacy)
+		type = hl_rendererOpenGLModern;
+	else if (flags & hl_windowOpenGLModern) win_flags |= RGFW_windowOpenGL;
+		type = hl_rendererOpenGLLegacy;
+
+	if (type != -1) {
+		hl_rendererHandle renderer = hl_renderer_init(type, window);
+		RGFW_UNUSED(renderer);
+	}
 
 	return (hl_windowHandle)window;
 }
@@ -23,6 +70,7 @@ bool hl_window_shouldClose(hl_windowHandle window) {
 }
 
 void hl_window_close(hl_windowHandle window) {
+	hl_renderer_free(((RGFW_window*)window)->userPtr);
 	RGFW_window_close((RGFW_window*)window);
 }
 
