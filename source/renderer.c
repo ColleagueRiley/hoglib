@@ -91,6 +91,10 @@ void hl_renderer_clear(hl_rendererHandle renderer, hl_color color) {
 	RSGL_renderer_clear(renderer, *(RSGL_color*)&color);
 }
 
+void hl_renderer_setTexture(hl_rendererHandle renderer, hl_textureHandle texture) {
+	RSGL_renderer_setTexture(renderer, (RSGL_texture)texture);
+}
+
 void hl_renderer_setColor(hl_rendererHandle renderer, hl_color color) {
 	RSGL_renderer_setColor(renderer, *(RSGL_color*)&color);
 }
