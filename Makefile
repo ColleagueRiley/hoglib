@@ -29,10 +29,24 @@ else
     OBJECTS = $(SOURCES:.c=.o)
 endif
 
-all: $(TARGET)
+LIBS = -Iinclude  -Lbuild ./build/libhoglib.a $(RGFW_LIBS)
+
+EXAMPLES = examples/basics/simple
+
+
+all: $(TARGET) $(OUTDIR)/libhoglib.a $(EXAMPLES)
+
+debug: all
+	@for exe in $(EXAMPLES); do \
+		echo "Running $$exe..."; \
+		./$$exe; \
+	done
+
+$(OUTDIR)/libhoglib.a: $(OBJECTS) | $(OUTDIR)
+	$(AR) rcs $@ $(OBJECTS)
 
 $(DLL_TARGET): $(OBJECTS) | $(OUTDIR)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(RGFW_LIBS) -Wl,--out-implib,$(IMPLIB)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(RGFW_LIBS)
 
 $(OUTDIR)/libhoglib.so: $(OBJECTS) | $(OUTDIR)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(RGFW_LIBS)
@@ -45,6 +59,9 @@ $(OUTDIR)/%.o: source/%.c | $(OUTDIR)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+$(EXAMPLES): %: %.c
+	$(CC) $^ $(LIBS) -o $@
 
 $(OUTDIR):
 	mkdir -p $(OUTDIR)
