@@ -1,6 +1,6 @@
 /*
 *
-*	RGFW 1.8.0-dev
+*	RGFW 1.8.0 pre-release
 
 * Copyright (C) 2022-25 Riley Mabb (@ColleagueRiley)
 *
@@ -298,6 +298,14 @@ int main() {
 	#define RGFW_MAX_DROPS 260 /* max items you can drop at once */
 #endif
 
+#ifndef RGFW_MAX_EVENTS
+	#define RGFW_MAX_EVENTS 32
+#endif
+
+#ifndef RGFW_MAX_MONITORS
+	#define RGFW_MAX_MONITORS 6
+#endif
+
 #ifndef RGFW_COCOA_FRAME_NAME
 	#define RGFW_COCOA_FRAME_NAME NULL
 #endif
@@ -340,7 +348,7 @@ int main() {
 	extern "C" {
 #endif
 
-	/* makes sure the header file part is only defined once by default */
+/* makes sure the header file part is only defined once by default */
 #ifndef RGFW_HEADER
 
 #define RGFW_HEADER
@@ -371,6 +379,8 @@ int main() {
 	#define RGFW_INT_DEFINED
 #endif
 
+typedef ptrdiff_t RGFW_ssize_t;
+
 #ifndef RGFW_BOOL_DEFINED
     #define RGFW_BOOL_DEFINED
     typedef u8 RGFW_bool;
@@ -383,128 +393,63 @@ int main() {
 #define RGFW_ENUM(type, name) type name; enum
 #define RGFW_BIT(x) (1 << (x))
 
-/* runs whatever RGFW_ALLOC was/is at compile time */
-RGFWDEF void* RGFW_alloc(size_t size);
-/* runs whatever RGFW_FREE was/is at compile time */
-RGFWDEF void RGFW_free(void* ptr);
+#ifdef RGFW_VULKAN
 
+	#if defined(RGFW_WAYLAND) && defined(RGFW_X11)
+		#define VK_USE_PLATFORM_WAYLAND_KHR
+		#define VK_USE_PLATFORM_XLIB_KHR
+		#define RGFW_VK_SURFACE ((RGFW_usingWayland()) ? ("VK_KHR_wayland_surface") : ("VK_KHR_xlib_surface"))
+	#elif defined(RGFW_WAYLAND)
+		#define VK_USE_PLATFORM_WAYLAND_KHR
+		#define VK_USE_PLATFORM_XLIB_KHR
+		#define RGFW_VK_SURFACE "VK_KHR_wayland_surface"
+	#elif defined(RGFW_X11)
+		#define VK_USE_PLATFORM_XLIB_KHR
+		#define RGFW_VK_SURFACE "VK_KHR_xlib_surface"
+	#elif defined(RGFW_WINDOWS)
+		#define VK_USE_PLATFORM_WIN32_KHR
+		#define OEMRESOURCE
+		#define RGFW_VK_SURFACE "VK_KHR_win32_surface"
+	#elif defined(RGFW_MACOS) && !defined(RGFW_MACOS_X11)
+		#define VK_USE_PLATFORM_MACOS_MVK
+		#define RGFW_VK_SURFACE "VK_MVK_macos_surface"
+	#else
+		#define RGFW_VK_SURFACE NULL
+	#endif
+
+#endif
+
+
+/*! @brief The stucture that contains information about the current RGFW instance */
+typedef struct RGFW_info RGFW_info;
+
+/*! @brief The window stucture for interfacing with the window */
 typedef struct RGFW_window RGFW_window;
+
+/*! @brief The source window stucture for interfacing with the underlying windowing API (e.g. winapi, wayland, cocoa, etc) */
 typedef struct RGFW_window_src RGFW_window_src;
 
-
-RGFWDEF size_t RGFW_sizeofWindow(void);
-RGFWDEF size_t RGFW_sizeofWindowSrc(void);
-
-/*! (unix) Toggle use of wayland. This will be on by default if you use `RGFW_WAYLAND` (if you don't use RGFW_WAYLAND, you don't expose WAYLAND functions)
-	this is mostly used to allow you to force the use of XWayland
-*/
-RGFWDEF void RGFW_useWayland(RGFW_bool wayland);
-RGFWDEF RGFW_bool RGFW_usingWayland(void);
-
-/*! These functions return data from _RGFW.
- * They return NULL if the platform is not in use (e.g. when trying to get OSX data on Windows).
- * */
-RGFWDEF void* RGFW_getLayer_OSX(void);
-RGFWDEF void* RGFW_getDisplay_X11(void);
-RGFWDEF struct wl_display* RGFW_getDisplay_Wayland(void);
-
-/*!
- * the class name for X11 and WinAPI. apps with the same class will be grouped by the WM
- * by default the class name will == the root window's name
-*/
-RGFWDEF void RGFW_setClassName(const char* name);
-RGFWDEF void RGFW_setXInstName(const char* name); /*!< X11 instance name (window name will by used by default) */
-
-/*! (cocoa only) change directory to resource folder */
-RGFWDEF void RGFW_moveToMacOSResourceDir(void);
-
+/*! @brief The color format for pixel data */
 typedef RGFW_ENUM(u8, RGFW_format) {
-    RGFW_formatRGB8 = 0,    /*!< 8-bit RGB (3 channels) */
-    RGFW_formatBGR8,    /*!< 8-bit BGR (3 channels) */
+	RGFW_formatRGB8 = 0,    /*!< 8-bit RGB (3 channels) */
+	RGFW_formatBGR8,    /*!< 8-bit BGR (3 channels) */
 	RGFW_formatRGBA8,   /*!< 8-bit RGBA (4 channels) */
 	RGFW_formatARGB8,   /*!< 8-bit RGBA (4 channels) */
-    RGFW_formatBGRA8,   /*!< 8-bit BGRA (4 channels) */
-    RGFW_formatABGR8,   /*!< 8-bit BGRA (4 channels) */
+	RGFW_formatBGRA8,   /*!< 8-bit BGRA (4 channels) */
+	RGFW_formatABGR8,   /*!< 8-bit BGRA (4 channels) */
 	RGFW_formatCount
 };
 
-/*! copy image to another image, respecting each image's format */
-RGFWDEF void RGFW_copyImageData(u8* dest_data, i32 w, i32 h, RGFW_format dest_format, u8* src_data, RGFW_format src_format);
-
+/*! @brief a stucture for interfacing with the underlying native image (e.g. XImage, HBITMAP, etc) */
 typedef struct RGFW_nativeImage RGFW_nativeImage;
-RGFWDEF size_t RGFW_sizeofNativeImage(void);
 
+/*! @brief a stucture for interfacing with pixel data as a renderable surface */
 typedef struct RGFW_surface RGFW_surface;
-RGFWDEF size_t RGFW_sizeofSurface(void);
 
-/*
- * NOTE: when you create a surface using RGFW_createSurface / ptr, on X11 it uses the root window's visual
- * this means it may fail to render on any other window if the visual does not match
- * RGFW_window_createSurface and RGFW_window_createSurfacePtr exist only for X11 to address this issues
- * Of course, you can also manually set the root window with RGFW_setRootWindow
- */
-RGFWDEF RGFW_surface* RGFW_createSurface(u8* data, i32 w, i32 h, RGFW_format format);
-RGFWDEF RGFW_bool RGFW_createSurfacePtr(u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface);
-
-RGFWDEF RGFW_nativeImage* RGFW_surface_getNativeImage(RGFW_surface* surface);
-
-/*! free the surface pointer and buffers used for software rendering within the window */
-RGFWDEF void RGFW_surface_free(RGFW_surface* surface);
-/*! free only the buffers used for software rendering within the window */
-RGFWDEF void RGFW_surface_freePtr(RGFW_surface* surface);
-
-/* RGFW mouse loading */
+/*! a raw pointer to the underlying mouse handle for setting and creating custom mouse icons */
 typedef void RGFW_mouse;
 
-/*!< loads mouse icon from bitmap (similar to RGFW_window_setIcon). Icon NOT resized by default */
-RGFWDEF RGFW_mouse* RGFW_loadMouse(u8* data, i32 w, i32 h, RGFW_format format);
-/*!< frees RGFW_mouse data */
-RGFWDEF void RGFW_freeMouse(RGFW_mouse* mouse);
-
-#ifndef RGFW_NO_MONITOR
-	#ifndef RGFW_MAX_MONITORS
-	#define RGFW_MAX_MONITORS 6
-	#endif
-	/* monitor mode data | can be changed by the user (with functions)*/
-	typedef struct RGFW_monitorMode {
-		i32 w, h; /*!< monitor workarea size */
-		u32 refreshRate; /*!< monitor refresh rate */
-		u8 red, blue, green;
-	} RGFW_monitorMode;
-
-	/*! structure for monitor data */
-	typedef struct RGFW_monitor {
-		i32 x, y; /*!< x - y of the monitor workarea */
-		char name[128]; /*!< monitor name */
-		float scaleX, scaleY; /*!< monitor content scale */
-		float pixelRatio; /*!< pixel ratio for monitor (1.0 for regular, 2.0 for hiDPI)  */
-		float physW, physH; /*!< monitor physical size in inches */
-		RGFW_monitorMode mode;
-	} RGFW_monitor;
-
-	/*! get an array of all the monitors (max 6) */
-	RGFWDEF RGFW_monitor* RGFW_getMonitors(size_t* len);
-	/*! get the primary monitor */
-	RGFWDEF RGFW_monitor RGFW_getPrimaryMonitor(void);
-
-	typedef RGFW_ENUM(u8, RGFW_modeRequest) {
-		RGFW_monitorScale = RGFW_BIT(0), /*!< scale the monitor size */
-		RGFW_monitorRefresh = RGFW_BIT(1), /*!< change the refresh rate */
-		RGFW_monitorRGB = RGFW_BIT(2), /*!< change the monitor RGB bits size */
-		RGFW_monitorAll = RGFW_monitorScale | RGFW_monitorRefresh | RGFW_monitorRGB
-	};
-
-	/*! request a specific mode */
-	RGFWDEF RGFW_bool RGFW_monitor_requestMode(RGFW_monitor mon, RGFW_monitorMode mode, RGFW_modeRequest request);
-	/*! check if 2 monitor modes are the same */
-	RGFWDEF RGFW_bool RGFW_monitorModeCompare(RGFW_monitorMode mon, RGFW_monitorMode mon2, RGFW_modeRequest request);
-	/*! scale monitor to window size */
-	RGFWDEF RGFW_bool RGFW_monitor_scaleToWindow(RGFW_monitor mon, struct RGFW_window* win);
-#endif
-
-/*!
-	key codes and mouse icon enums
-*/
+/*! @brief RGFW's abstract keycodes */
 typedef RGFW_ENUM(u8, RGFW_key) {
 	RGFW_keyNULL = 0,
 	RGFW_escape = '\033',
@@ -631,7 +576,7 @@ typedef RGFW_ENUM(u8, RGFW_key) {
     RGFW_keyLast = 256 /* padding for alignment ~(175 by default) */
 };
 
-/*! mouse button codes (RGFW_event.button.value) */
+/*! @brief abstract mouse button codes */
 typedef RGFW_ENUM(u8, RGFW_mouseButton) {
 	RGFW_mouseLeft = 0, /*!< left mouse button is pressed */
 	RGFW_mouseMiddle, /*!< mouse-wheel-button is pressed */
@@ -640,7 +585,7 @@ typedef RGFW_ENUM(u8, RGFW_mouseButton) {
 	RGFW_mouseFinal
 };
 
-/* for RGFW_event.lockstate */
+/*! abstract key modifier codes */
 typedef RGFW_ENUM(u8, RGFW_keymod) {
 	RGFW_modCapsLock = RGFW_BIT(0),
 	RGFW_modNumLock  = RGFW_BIT(1),
@@ -651,8 +596,8 @@ typedef RGFW_ENUM(u8, RGFW_keymod) {
 	RGFW_modScrollLock = RGFW_BIT(6)
 };
 
+/*! @brief codes for the event types that can be sent */
 typedef RGFW_ENUM(u8, RGFW_eventType) {
-	/*! event codes */
 	RGFW_eventNone = 0, /*!< no event has been sent */
  	RGFW_keyPressed, /* a key has been pressed */
 	RGFW_keyReleased, /*!< a key has been released */
@@ -705,7 +650,7 @@ typedef RGFW_ENUM(u8, RGFW_eventType) {
 	RGFW_scaleUpdated /*!< content scale factor changed */
 };
 
-
+/*! @brief flags for toggling wether or not an event should be processed */
 typedef RGFW_ENUM(u32, RGFW_eventFlag) {
     RGFW_keyPressedFlag = RGFW_BIT(RGFW_keyPressed),
     RGFW_keyReleasedFlag = RGFW_BIT(RGFW_keyReleased),
@@ -737,23 +682,28 @@ typedef RGFW_ENUM(u32, RGFW_eventFlag) {
 };
 
 /*! Event structure(s) and union for checking/getting events */
+
+/*! @brief common event data across all events */
 typedef struct RGFW_commonEvent {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_window* win; /*!< the window this event applies too (for event queue events) */
 } RGFW_commonEvent;
 
+/*! @brief event data for any mouse button event (press/release) */
 typedef struct RGFW_mouseButtonEvent {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_window* win; /*!< the window this event applies too (for event queue events) */
 	u8 value; /* !< which mouse button was pressed */
 } RGFW_mouseButtonEvent;
 
+/*! @brief event data for any mouse scroll event */
 typedef struct RGFW_mouseScrollEvent {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_window* win; /*!< the window this event applies too (for event queue events) */
 	float x, y; /*!< the raw mouse scroll value */
 } RGFW_mouseScrollEvent;
 
+/*! @brief event data for any mouse position event (RGFW_mousePosChanged) */
 typedef struct RGFW_mousePosEvent {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_window* win; /*!< the window this event applies too (for event queue events) */
@@ -761,6 +711,7 @@ typedef struct RGFW_mousePosEvent {
 	float vecX, vecY; /*!< raw mouse movement */
 } RGFW_mousePosEvent;
 
+/*! @brief event data for any key event (press/release) */
 typedef struct RGFW_keyEvent {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_window* win; /*!< the window this event applies too (for event queue events) */
@@ -770,6 +721,7 @@ typedef struct RGFW_keyEvent {
 	RGFW_keymod mod;
 } RGFW_keyEvent;
 
+/*! @brief event data for any data drop event */
 typedef struct RGFW_dataDropEvent {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_window* win; /*!< the window this event applies too (for event queue events) */
@@ -778,19 +730,21 @@ typedef struct RGFW_dataDropEvent {
 	size_t count; /*!< how many files were dropped */
 } RGFW_dataDropEvent;
 
+/*! @brief event data for any data drag event */
 typedef struct RGFW_dataDragEvent {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_window* win; /*!< the window this event applies too (for event queue events) */
 	i32 x, y; /*!< mouse x, y of event (or drop point) */
 } RGFW_dataDragEvent;
 
+/*! @brief event data for when the window scale (DPI) is updated */
 typedef struct RGFW_scaleUpdatedEvent {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_window* win; /*!< the window this event applies too (for event queue events) */
 	float x, y; /*!< DPI scaling */
 } RGFW_scaleUpdatedEvent;
 
-/*! RGFW_event union */
+/*! @brief union for all of the event stucture types */
 typedef union RGFW_event {
 	RGFW_eventType type; /*!< which event has been sent?*/
 	RGFW_commonEvent common; /*!< common event data (e.g.) type and win */
@@ -804,7 +758,7 @@ typedef union RGFW_event {
 } RGFW_event;
 
 /*!
-	for RGFW_the code is stupid and C++ waitForEvent
+	@!brief codes for for RGFW_the code is stupid and C++ waitForEvent
 	waitMS -> Allows the function to keep checking for events even after there are no more events
 			  if waitMS == 0, the loop will not wait for events
 			  if waitMS > 0, the loop will wait that many miliseconds after there are no more events until it returns
@@ -815,46 +769,9 @@ typedef RGFW_ENUM(i32, RGFW_eventWait) {
 	RGFW_eventWaitNext = -1
 };
 
-/*! sleep until RGFW gets an event or the timer ends (defined by OS) */
-RGFWDEF void RGFW_waitForEvent(i32 waitMS);
 
-/*! if you you want events to be queued or not.
- * This is enabled when the queue is checked with RGFW_window_checkQueuedEvent or RGFW_window_checkEvent
- * Otherwise it's disabled by default */
-RGFWDEF void RGFW_setQueueEvents(RGFW_bool queue);
 
-/*!
-	check all the events until there are none left and updates window structure attributes
-	adds them to a queue for RGFW_window_checkEvent to check if queueEvents is true
-*/
-RGFWDEF void RGFW_pollEvents(void);
-
-/*!
-	tell RGFW_waitForEvent to stop waiting (to be ran from another thread)
-*/
-RGFWDEF void RGFW_stopCheckEvents(void);
-
-/** * @defgroup Input
-* @{ */
-
-RGFWDEF RGFW_bool RGFW_isKeyPressed(RGFW_key key); /*!< if key is pressed during the current frame  (key code)*/
-
-RGFWDEF RGFW_bool RGFW_isKeyDown(RGFW_key key); /*!< if key is held (key code) */
-RGFWDEF RGFW_bool RGFW_isKeyReleased(RGFW_key key); /*!< if key is released (key code) */
-
-/*! if a mouse button is pressed during the current frame */
-RGFWDEF RGFW_bool RGFW_isMousePressed(RGFW_mouseButton button /*!< mouse button code */ );
-/*! if a mouse button is down */
-RGFWDEF RGFW_bool RGFW_isMouseDown(RGFW_mouseButton button /*!< mouse button code */ );
-/*! if a mouse button was released */
-RGFWDEF RGFW_bool RGFW_isMouseReleased(RGFW_mouseButton button /*!< mouse button code */ );
-/*! get the current scroll value (of the frame) */
-RGFWDEF void RGFW_getMouseScroll(float* x, float* y);
-/*! get the current vector value (of the frame) */
-RGFWDEF void RGFW_getMouseVector(float* x, float* y);
-/** @} */
-
-/*! Optional arguments for making a windows */
+/*! @brief optional bitwise arguments for making a windows, these can be OR'd together */
 typedef RGFW_ENUM(u32, RGFW_windowFlags) {
 	RGFW_windowNoBorder = RGFW_BIT(0), /*!< the window doesn't have a border */
 	RGFW_windowNoResize = RGFW_BIT(1), /*!< the window cannot be resized by the user */
@@ -865,8 +782,8 @@ typedef RGFW_ENUM(u32, RGFW_windowFlags) {
 	RGFW_windowCenter = RGFW_BIT(6), /*! center the window on the screen */
 	RGFW_windowScaleToMonitor = RGFW_BIT(8), /*! scale the window to the screen */
 	RGFW_windowHide = RGFW_BIT(9), /*! the window is hidden */
-	RGFW_windowMaximize = RGFW_BIT(10),
-	RGFW_windowCenterCursor = RGFW_BIT(11),
+	RGFW_windowMaximize = RGFW_BIT(10), /*!< maximize the window on creation */
+	RGFW_windowCenterCursor = RGFW_BIT(11), /*!< center the cursor to the window on creation */
 	RGFW_windowFloating = RGFW_BIT(12), /*!< create a floating window */
 	RGFW_windowFocusOnShow = RGFW_BIT(13), /*!< focus the window when it's shown */
 	RGFW_windowMinimize = RGFW_BIT(14), /*!< focus the window when it's shown */
@@ -876,188 +793,14 @@ typedef RGFW_ENUM(u32, RGFW_windowFlags) {
 	RGFW_windowedFullscreen = RGFW_windowNoBorder | RGFW_windowMaximize
 };
 
-/* NOTE: (windows) if the executable has an icon resource named RGFW_ICON, it will be set as the initial icon for the window */
-
-RGFWDEF RGFW_window* RGFW_createWindow(
-	const char* name, /* name of the window */
-	i32 x, i32 y, /* position of the window */
-	i32 w, i32 h, /* size of the window */
-	RGFW_windowFlags flags /* extra arguments ((u32)0 means no flags used)*/
-); /*!< function to create a window and struct */
-
-RGFWDEF RGFW_window* RGFW_createWindowPtr(
-	const char* name, /* name of the window */
-	i32 x, i32 y, /* position of the window */
-	i32 w, i32 h, /* size of the window */
-	RGFW_windowFlags flags, /* extra arguments (NULL / (u32)0 means no flags used) */
-	RGFW_window* win/* ptr to the fat window struct you want to use */
-); /*!< function to create a window (without allocating a window struct) */
-
-
-/*
- * NOTE: when you create a surface using RGFW_createSurface / ptr, on X11 it uses the root window's visual
- * this means it may fail to render on any other window if the visual does not match
- * RGFW_window_createSurface and RGFW_window_createSurfacePtr exist only for X11 to address this issues
- * Of course, you can also manually set the root window with RGFW_setRootWindow
- */
-RGFWDEF RGFW_surface* RGFW_window_createSurface(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format);
-RGFWDEF RGFW_bool RGFW_window_createSurfacePtr(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface);
-
-/*! render the software rendering buffer */
-RGFWDEF void RGFW_window_blitSurface(RGFW_window* win, RGFW_surface* surface);
-
-RGFWDEF RGFW_bool RGFW_window_getPosition(RGFW_window* win, i32* x, i32* y); /*!< gets the position of the window | with RGFW_window.x and window.y */
-RGFWDEF RGFW_bool RGFW_window_getSize(RGFW_window* win, i32* w, i32* h);  /*!< gets the size of the window | with RGFW_window.w and window.h */
-
-RGFWDEF u32 RGFW_window_getFlags(RGFW_window* win); /*!< gets the flags of the window | returns RGFW_window._flags */
-
-RGFWDEF RGFW_key RGFW_window_getExitKey(RGFW_window* win); /*!< get the exit key for the window | returns RGFW_window.exitKey */
-RGFWDEF void RGFW_window_setExitKey(RGFW_window* win, RGFW_key key); /*!< set the exit key for the window |edits RGFW_window.exitKey */
-
-/*! sets the types of events you want to receive, RGFW_allEventFlags by default (modifies RGFW_window._enabledEvents) */
-RGFWDEF void RGFW_window_setEnabledEvents(RGFW_window* win, RGFW_eventFlag events);
-/*! gets all enabled events  RGFW_window._enabledEvents (returns RGFW_window._enabledEvents) */
-RGFWDEF RGFW_eventFlag RGFW_window_getEnabledEvents(RGFW_window* win);
-/*! enables all events and then disables select events (modifies RGFW_window._enabledEvents)*/
-RGFWDEF void RGFW_window_setDisabledEvents(RGFW_window* win, RGFW_eventFlag events);
-/*! directly enables or disabled a specific event, (or cluster of events) (modifies RGFW_window._enabledEvents */
-RGFWDEF void RGFW_window_setEventState(RGFW_window* win, RGFW_eventFlag event, RGFW_bool state);
-
-RGFWDEF void* RGFW_window_getUserPtr(RGFW_window* win); /*!< gets the userPtr of the window | returns RGFW_window.userPtr */
-RGFWDEF void RGFW_window_setUserPtr(RGFW_window* win, void* ptr); /*!< sets the userPtr of the window | writes to RGFW_window.userPtr */
-
-RGFWDEF RGFW_window_src* RGFW_window_getSrc(RGFW_window* win); /*!< returns fat pointer of window, which is sourced from the window casted to the fast pointer */
-
-/* thiese functions return data from the `RGFW_window_src` object in `RGFW_window`, they return NULL if the platform is not in use.
- * (e.g. when trying to get OSX data on Windows) */
-RGFWDEF void RGFW_window_setLayer_OSX(RGFW_window* win, void* layer);
-RGFWDEF void* RGFW_window_getView_OSX(RGFW_window* win);
-RGFWDEF void* RGFW_window_getWindow_OSX(RGFW_window* win);
-RGFWDEF void* RGFW_window_getHWND(RGFW_window* win);
-RGFWDEF void* RGFW_window_getHDC(RGFW_window* win);
-RGFWDEF u64 RGFW_window_getWindow_X11(RGFW_window* win);
-RGFWDEF struct wl_surface* RGFW_window_getWindow_Wayland(RGFW_window* win);
-
-/** * @defgroup Window_management
-* @{ */
-
-/*! set the window flags (will undo flags if they don't match the old ones) */
-RGFWDEF void RGFW_window_setFlags(RGFW_window* win, RGFW_windowFlags);
-
-/*!
-	polls the event queue if it's empty and pops the first event for the window from the event queue
-	using this function without a while loop may cause event lag
-
-	because this function polls events, it may not work for multi-threaded systems
-	RGFW_pollEvents + RGFW_window_checkQueuedEvent should be used when using multi-threaded systems
-
-	ex.
-
-	RGFW_event;
-	while (RGFW_window_checkEvent(win, &event)) [this keeps checking events until it reaches the last queued event]
-
-	you may also use `RGFW_pollEvents` instead
-*/
-RGFWDEF RGFW_bool RGFW_window_checkEvent(RGFW_window* win, RGFW_event* event); /*!< check current event (returns RGFW_TRUE if there is an event or RGFW_FALSE if there is no event)*/
-/*! pops the first event for the window from the event queue */
-RGFWDEF RGFW_bool RGFW_window_checkQueuedEvent(RGFW_window* win, RGFW_event* event);
-
-/*! checks only if the key is pressed while the window in focus. */
-RGFWDEF RGFW_bool RGFW_window_isKeyPressed(RGFW_window* win, RGFW_key key); /*!< if key is pressed (key code)*/
-
-RGFWDEF RGFW_bool RGFW_window_isKeyDown(RGFW_window* win, RGFW_key key); /*!< if key is held (key code) */
-RGFWDEF RGFW_bool RGFW_window_isKeyReleased(RGFW_window* win, RGFW_key key); /*!< if key is released (key code) */
-
-/*! if a mouse button is pressed */
-RGFWDEF RGFW_bool RGFW_window_isMousePressed(RGFW_window* win, RGFW_mouseButton button /*!< mouse button code */ );
-/*! if a mouse button is down */
-RGFWDEF RGFW_bool RGFW_window_isMouseDown(RGFW_window* win, RGFW_mouseButton button /*!< mouse button code */ );
-/*! if a mouse button was released */
-RGFWDEF RGFW_bool RGFW_window_isMouseReleased(RGFW_window* win, RGFW_mouseButton button /*!< mouse button code */ );
-/*! if the mouse left the window, only true for the first frame */
-RGFWDEF RGFW_bool RGFW_window_didMouseLeave(RGFW_window* win);
-/*! if the mouse enter the window, only true for the first frame */
-RGFWDEF RGFW_bool RGFW_window_didMouseEnter(RGFW_window* win);
-/*! if the mouse is within the window or not */
-RGFWDEF RGFW_bool RGFW_window_isMouseInside(RGFW_window* win);
-
-/*! if there is data being dragged to/in the window, only true for the first frame */
-RGFWDEF RGFW_bool RGFW_window_isDataDragging(RGFW_window* win);
-/*! gets the drag point, returns true if if there is data being dragged to/in the window, only true for the first frame */
-RGFWDEF RGFW_bool RGFW_window_getDataDrag(RGFW_window* win, i32* x, i32* y);
-/* true the first frame there was a data drop (drag and drop) to the window */
-RGFWDEF RGFW_bool RGFW_window_didDataDrop(RGFW_window* win);
-/* sets file pointer to the internal files pointer, fills count with the number of files, true the first frame there was a data drop (drag and drop) to the window */
-RGFWDEF RGFW_bool RGFW_window_getDataDrop(RGFW_window* win, const char*** files, size_t* count);
-
-/*! window managment functions */
-RGFWDEF void RGFW_window_close(RGFW_window* win); /*!< close the window and free the window struct */
-RGFWDEF void RGFW_window_closePtr(RGFW_window* win); /*!< close the window, don't free the window struct */
-
-/*! move a window to a given point */
-RGFWDEF void RGFW_window_move(RGFW_window* win,
-	i32 x, i32 y /*!< new pos */
-);
-
-#ifndef RGFW_NO_MONITOR
-	/*! move window to a specific monitor */
-	RGFWDEF void RGFW_window_moveToMonitor(RGFW_window* win, RGFW_monitor m /* monitor */);
-#endif
-
-/*! resize window to a current size/area */
-RGFWDEF void RGFW_window_resize(RGFW_window* win, /*!< source window */ i32 w, i32 h /*!< new size */);
-
-/*! set window aspect ratio */
-RGFWDEF void RGFW_window_setAspectRatio(RGFW_window* win, i32 w, i32 h);
-/*! set the minimum dimensions of a window */
-RGFWDEF void RGFW_window_setMinSize(RGFW_window* win, i32 w, i32 h);
-/*! set the maximum dimensions of a window */
-RGFWDEF void RGFW_window_setMaxSize(RGFW_window* win,  i32 w, i32 h);
-
-RGFWDEF void RGFW_window_focus(RGFW_window* win); /*!< sets the focus to this window */
-RGFWDEF RGFW_bool RGFW_window_isInFocus(RGFW_window* win); /*!< checks the focus to this window */
-RGFWDEF void RGFW_window_raise(RGFW_window* win); /*!< raise the window (to the top) */
-RGFWDEF void RGFW_window_maximize(RGFW_window* win); /*!< maximize the window */
-RGFWDEF void RGFW_window_setFullscreen(RGFW_window* win, RGFW_bool fullscreen); /*!< turn fullscreen on / off for a window */
-RGFWDEF void RGFW_window_center(RGFW_window* win); /*!< center the window */
-RGFWDEF void RGFW_window_minimize(RGFW_window* win); /*!< minimize the window (in taskbar (per OS))*/
-RGFWDEF void RGFW_window_restore(RGFW_window* win); /*!< restore the window from minimized (per OS)*/
-RGFWDEF void RGFW_window_setFloating(RGFW_window* win, RGFW_bool floating); /*!< make the window a floating window */
-RGFWDEF void RGFW_window_setOpacity(RGFW_window* win, u8 opacity); /*!< sets the opacity of a window */
-
-/*! if the window should have a border or not (borderless) based on bool value of `border` */
-RGFWDEF void RGFW_window_setBorder(RGFW_window* win, RGFW_bool border);
-RGFWDEF RGFW_bool RGFW_window_borderless(RGFW_window* win);
-
-/*! turn on / off dnd (RGFW_windowAllowDND stil must be passed to the window)*/
-RGFWDEF void RGFW_window_setDND(RGFW_window* win, RGFW_bool allow);
-/*! check if DND is allowed */
-RGFWDEF RGFW_bool RGFW_window_allowsDND(RGFW_window* win);
-
-
-#ifndef RGFW_NO_PASSTHROUGH
-	/*! turn on / off mouse passthrough */
-	RGFWDEF void RGFW_window_setMousePassthrough(RGFW_window* win, RGFW_bool passthrough);
-#endif
-
-/*! rename window to a given string */
-RGFWDEF void RGFW_window_setName(RGFW_window* win,
-	const char* name
-);
-
-/*!< image MAY be resized by default, set both the taskbar and window icon */
-RGFWDEF RGFW_bool RGFW_window_setIcon(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format);
-
+/*! @brief the types of icon to set */
 typedef RGFW_ENUM(u8, RGFW_icon) {
 	RGFW_iconTaskbar = RGFW_BIT(0),
 	RGFW_iconWindow = RGFW_BIT(1),
 	RGFW_iconBoth = RGFW_iconTaskbar | RGFW_iconWindow
 };
-RGFWDEF RGFW_bool RGFW_window_setIconEx(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format, RGFW_icon type);
 
-/*!< sets mouse to RGFW_mouse icon (loaded from a bitmap struct) */
-RGFWDEF void RGFW_window_setMouse(RGFW_window* win, RGFW_mouse* mouse);
-
+/*! @brief standard mouse icons */
 typedef RGFW_ENUM(u8, RGFW_mouseIcons) {
 	RGFW_mouseNormal = 0,
 	RGFW_mouseArrow,
@@ -1074,93 +817,12 @@ typedef RGFW_ENUM(u8, RGFW_mouseIcons) {
     RGFW_mouseIconFinal = 16 /* padding for alignment */
 };
 
-/*!< sets the mouse to a standard API cursor (based on RGFW_MOUSE, as seen at the end of the RGFW_HEADER part of this file) */
-RGFWDEF	RGFW_bool RGFW_window_setMouseStandard(RGFW_window* win, RGFW_mouseIcons mouse);
-
-RGFWDEF RGFW_bool RGFW_window_setMouseDefault(RGFW_window* win); /*!< sets the mouse to the default mouse icon */
-/*
-	Locks cursor at the center of the window
-	x, y becomes raw mouse movement data
-
-	this is useful for a 3D camera
-*/
-RGFWDEF void RGFW_window_holdMouse(RGFW_window* win);
-/*! if the mouse is held by RGFW */
-RGFWDEF RGFW_bool RGFW_window_isHoldingMouse(RGFW_window* win);
-/*! stop holding the mouse and let it move freely */
-RGFWDEF void RGFW_window_unholdMouse(RGFW_window* win);
-
-/*! hide the window */
-RGFWDEF void RGFW_window_hide(RGFW_window* win);
-/*! show the window */
-RGFWDEF void RGFW_window_show(RGFW_window* win);
-
-/*
-	makes it so `RGFW_window_shouldClose` returns true or overrides a window close
-	by modifying window flags
-*/
-RGFWDEF void RGFW_window_setShouldClose(RGFW_window* win, RGFW_bool shouldClose);
-
-/*! where the mouse is on the screen */
-RGFWDEF RGFW_bool RGFW_getGlobalMouse(i32* x, i32* y);
-
-/*! where the mouse is on the window */
-RGFWDEF RGFW_bool RGFW_window_getMouse(RGFW_window* win, i32* x, i32* y);
-
-/*! show the mouse or hide the mouse */
-RGFWDEF void RGFW_window_showMouse(RGFW_window* win, RGFW_bool show);
-/*! if the mouse is hidden */
-RGFWDEF RGFW_bool RGFW_window_isMouseHidden(RGFW_window* win);
-/*! move the mouse to a given point */
-RGFWDEF void RGFW_window_moveMouse(RGFW_window* win, i32 x, i32 y);
-
-/*! if the window should close (RGFW_close was sent or escape was pressed) */
-RGFWDEF RGFW_bool RGFW_window_shouldClose(RGFW_window* win);
-/*! if the window is fullscreen */
-RGFWDEF RGFW_bool RGFW_window_isFullscreen(RGFW_window* win);
-/*! if the window is hidden */
-RGFWDEF RGFW_bool RGFW_window_isHidden(RGFW_window* win);
-/*! if the window is minimized */
-RGFWDEF RGFW_bool RGFW_window_isMinimized(RGFW_window* win);
-/*! if the window is maximized */
-RGFWDEF RGFW_bool RGFW_window_isMaximized(RGFW_window* win);
-/*! if the window is floating */
-RGFWDEF RGFW_bool RGFW_window_isFloating(RGFW_window* win);
-/** @} */
-
-/** * @defgroup Monitor
-* @{ */
-
-#ifndef RGFW_NO_MONITOR
-/*
-	scale the window to the monitor.
-	This is run by default if the user uses the arg `RGFW_scaleToMonitor` during window creation
-*/
-RGFWDEF void RGFW_window_scaleToMonitor(RGFW_window* win);
-/*! get the struct of the window's monitor  */
-RGFWDEF RGFW_monitor RGFW_window_getMonitor(RGFW_window* win);
-#endif
-
-/** @} */
-
-/** * @defgroup Clipboard
-* @{ */
-typedef ptrdiff_t RGFW_ssize_t;
-
-RGFWDEF const char* RGFW_readClipboard(size_t* size); /*!< read clipboard data */
-/*! read clipboard data or send a NULL str to just get the length of the clipboard data */
-RGFWDEF RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity);
-RGFWDEF void RGFW_writeClipboard(const char* text, u32 textLen); /*!< write text to the clipboard */
-/** @} */
-
-
-
-/** * @defgroup error handling
-* @{ */
+/*! @brief the type of debug message */
 typedef RGFW_ENUM(u8, RGFW_debugType) {
 	RGFW_typeError = 0, RGFW_typeWarning, RGFW_typeInfo
 };
 
+/*! @brief error codes for known failure types */
 typedef RGFW_ENUM(u8, RGFW_errorCode) {
 	RGFW_noError = 0, /*!< no error */
 	RGFW_errOutOfMemory,
@@ -1176,104 +838,102 @@ typedef RGFW_ENUM(u8, RGFW_errorCode) {
 	RGFW_warningWayland, RGFW_warningOpenGL
 };
 
+/*! @brief callback function type for debug messags */
 typedef void (* RGFW_debugfunc)(RGFW_debugType type, RGFW_errorCode err, const char* msg);
-RGFWDEF RGFW_debugfunc RGFW_setDebugCallback(RGFW_debugfunc func);
-RGFWDEF void RGFW_sendDebugInfo(RGFW_debugType type, RGFW_errorCode err, const char* msg);
-/** @} */
 
-/**
-
-
-	event callbacks.
-	These are completely optional, so you can use the normal
-	RGFW_checkEvent() method if you prefer that
-
-* @defgroup Callbacks
-* @{
-*/
-
-/*! RGFW_windowMoved, the window and its new rect value  */
+/*! @brief RGFW_windowMoved, the window and its new rect value  */
 typedef void (* RGFW_windowMovedfunc)(RGFW_window* win, i32 x, i32 y);
-/*! RGFW_windowResized, the window and its new rect value  */
+/*! @brief RGFW_windowResized, the window and its new rect value  */
 typedef void (* RGFW_windowResizedfunc)(RGFW_window* win, i32 w, i32 h);
-/*! RGFW_windowRestored, the window and its new rect value  */
+/*! @brief RGFW_windowRestored, the window and its new rect value  */
 typedef void (* RGFW_windowRestoredfunc)(RGFW_window* win, i32 x, i32 y, i32 w, i32 h);
-/*! RGFW_windowMaximized, the window and its new rect value  */
+/*! @brief RGFW_windowMaximized, the window and its new rect value  */
 typedef void (* RGFW_windowMaximizedfunc)(RGFW_window* win, i32 x, i32 y, i32 w, i32 h);
-/*! RGFW_windowMinimized, the window and its new rect value  */
+/*! @brief RGFW_windowMinimized, the window and its new rect value  */
 typedef void (* RGFW_windowMinimizedfunc)(RGFW_window* win);
-/*! RGFW_quit, the window that was closed */
+/*! @brief RGFW_quit, the window that was closed */
 typedef void (* RGFW_windowQuitfunc)(RGFW_window* win);
-/*! RGFW_focusIn / RGFW_focusOut, the window who's focus has changed and if its in focus */
+/*! @brief RGFW_focusIn / RGFW_focusOut, the window who's focus has changed and if its in focus */
 typedef void (* RGFW_focusfunc)(RGFW_window* win, RGFW_bool inFocus);
-/*! RGFW_mouseEnter / RGFW_mouseLeave, the window that changed, the point of the mouse (enter only) and if the mouse has entered */
+/*! @brief RGFW_mouseEnter / RGFW_mouseLeave, the window that changed, the point of the mouse (enter only) and if the mouse has entered */
 typedef void (* RGFW_mouseNotifyfunc)(RGFW_window* win, i32 x, i32 y, RGFW_bool status);
-/*! RGFW_mousePosChanged, the window that the move happened on, and the new point of the mouse  */
+/*! @brief RGFW_mousePosChanged, the window that the move happened on, and the new point of the mouse  */
 typedef void (* RGFW_mousePosfunc)(RGFW_window* win, i32 x, i32 y, float vecX, float vecY);
-/*! RGFW_dataDrag, the window, the point of the drop on the windows */
+/*! @brief RGFW_dataDrag, the window, the point of the drop on the windows */
 typedef void (* RGFW_dataDragfunc)(RGFW_window* win, i32 x, i32 y);
-/*! RGFW_windowRefresh, the window that needs to be refreshed */
+/*! @brief RGFW_windowRefresh, the window that needs to be refreshed */
 typedef void (* RGFW_windowRefreshfunc)(RGFW_window* win);
-/*! RGFW_keyPressed / RGFW_keyReleased, the window that got the event, the mapped key, the physical key, the string version, the state of the mod keys, if it was a press (else it's a release) */
+/*! @brief RGFW_keyPressed / RGFW_keyReleased, the window that got the event, the mapped key, the physical key, the string version, the state of the mod keys, if it was a press (else it's a release) */
 typedef void (* RGFW_keyfunc)(RGFW_window* win, u8 key, u8 sym, RGFW_keymod mod, RGFW_bool repeat, RGFW_bool pressed);
-/*! RGFW_mouseButtonPressed / RGFW_mouseButtonReleased, the window that got the event, the button that was pressed, the scroll value, if it was a press (else it's a release)  */
+/*! @brief RGFW_mouseButtonPressed / RGFW_mouseButtonReleased, the window that got the event, the button that was pressed, the scroll value, if it was a press (else it's a release)  */
 typedef void (* RGFW_mouseButtonfunc)(RGFW_window* win, RGFW_mouseButton button, RGFW_bool pressed);
-/*! RGFW_mouseScroll, the window that got the event, the x scroll value, the y scroll value */
+/*! @brief RGFW_mouseScroll, the window that got the event, the x scroll value, the y scroll value */
 typedef void (* RGFW_mouseScrollfunc)(RGFW_window* win, float x, float y);
-/*! RGFW_dataDrop the window that had the drop, the drop data and the number of files dropped */
+/*! @brief RGFW_dataDrop the window that had the drop, the drop data and the number of files dropped */
 typedef void (* RGFW_dataDropfunc)(RGFW_window* win, char** files, size_t count);
-/*! RGFW_scaleUpdated, the window the event was sent to, content scaleX, content scaleY */
+/*! @brief RGFW_scaleUpdated, the window the event was sent to, content scaleX, content scaleY */
 typedef void (* RGFW_scaleUpdatedfunc)(RGFW_window* win, float scaleX, float scaleY);
 
-/*! set callback for a window move event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_windowMovedfunc RGFW_setWindowMovedCallback(RGFW_windowMovedfunc func);
-/*! set callback for a window resize event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_windowResizedfunc RGFW_setWindowResizedCallback(RGFW_windowResizedfunc func);
-/*! set callback for a window quit event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_windowQuitfunc RGFW_setWindowQuitCallback(RGFW_windowQuitfunc func);
-/*! set callback for a mouse move event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_mousePosfunc RGFW_setMousePosCallback(RGFW_mousePosfunc func);
-/*! set callback for a window refresh event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_windowRefreshfunc RGFW_setWindowRefreshCallback(RGFW_windowRefreshfunc func);
-/*! set callback for a window focus change event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_focusfunc RGFW_setFocusCallback(RGFW_focusfunc func);
-/*! set callback for a mouse notify event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_mouseNotifyfunc RGFW_setMouseNotifyCallback(RGFW_mouseNotifyfunc func);
-/*! set callback for a drop event event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_dataDropfunc RGFW_setDataDropCallback(RGFW_dataDropfunc func);
-/*! set callback for a start of a drop event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_dataDragfunc RGFW_setDataDragCallback(RGFW_dataDragfunc func);
-/*! set callback for a key (press / release) event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_keyfunc RGFW_setKeyCallback(RGFW_keyfunc func);
-/*! set callback for a mouse button (press / release) event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_mouseButtonfunc RGFW_setMouseButtonCallback(RGFW_mouseButtonfunc func);
-/*! set callback for a mouse scale  event. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_mouseScrollfunc RGFW_setMouseScrollCallback(RGFW_mouseScrollfunc func);
-/*! set call back for when window is maximized. Returns the previous callback function (if it was set) */
-RGFWDEF RGFW_windowMaximizedfunc RGFW_setWindowMaximizedCallback(RGFW_windowMaximizedfunc func);
-/*! set call back for when window is minimized. Returns the previous callback function (if it was set) */
-RGFWDEF RGFW_windowMinimizedfunc RGFW_setWindowMinimizedCallback(RGFW_windowMinimizedfunc func);
-/*! set call back for when window is restored. Returns the previous callback function (if it was set) */
-RGFWDEF RGFW_windowRestoredfunc RGFW_setWindowRestoredCallback(RGFW_windowRestoredfunc func);
-/*! set callback for when the DPI changes. Returns previous callback function (if it was set)  */
-RGFWDEF RGFW_scaleUpdatedfunc RGFW_setScaleUpdatedCallback(RGFW_scaleUpdatedfunc func);
-/** @} */
+/*! @brief function pointer equivalent of void* */
+typedef void (*RGFW_proc)(void);
 
-/** * @defgroup graphics_API
-* @{ */
+#ifndef RGFW_NO_MONITOR
 
-typedef void (*RGFW_proc)(void); /* function pointer equivalent of void* */
+/*! @brief monitor mode data | can be changed by the user (with functions)*/
+typedef struct RGFW_monitorMode {
+	i32 w, h; /*!< monitor workarea size */
+	u32 refreshRate; /*!< monitor refresh rate */
+	u8 red, blue, green;
+} RGFW_monitorMode;
 
-/*! native rendering API functions */
+/*! @brief structure for monitor data */
+typedef struct RGFW_monitor {
+	i32 x, y; /*!< x - y of the monitor workarea */
+	char name[128]; /*!< monitor name */
+	float scaleX, scaleY; /*!< monitor content scale */
+	float pixelRatio; /*!< pixel ratio for monitor (1.0 for regular, 2.0 for hiDPI)  */
+	float physW, physH; /*!< monitor physical size in inches */
+	RGFW_monitorMode mode;
+} RGFW_monitor;
+
+/*! @brief what type of request you are making for the monitor */
+typedef RGFW_ENUM(u8, RGFW_modeRequest) {
+	RGFW_monitorScale = RGFW_BIT(0), /*!< scale the monitor size */
+	RGFW_monitorRefresh = RGFW_BIT(1), /*!< change the refresh rate */
+	RGFW_monitorRGB = RGFW_BIT(2), /*!< change the monitor RGB bits size */
+	RGFW_monitorAll = RGFW_monitorScale | RGFW_monitorRefresh | RGFW_monitorRGB
+};
+
+#endif
+
 #if defined(RGFW_OPENGL)
+
+/*! @brief abstract structure for interfacing with the underlying OpenGL API */
 typedef struct RGFW_glContext RGFW_glContext;
+
+/*! @brief abstract structure for interfacing with the underlying EGL API */
 typedef struct RGFW_eglContext RGFW_eglContext;
 
-/*! OpenGL init hints */
-typedef RGFW_ENUM(i32, RGFW_glReleaseBehavior)   { RGFW_glReleaseFlush = 0, RGFW_glReleaseNone };
-typedef RGFW_ENUM(i32, RGFW_glProfile)  { RGFW_glCore = 0, RGFW_glCompatibility, RGFW_glES};
-typedef RGFW_ENUM(i32, RGFW_glRenderer)  { RGFW_glAccelerated = 0, RGFW_glSoftware };
+/*! values for the releaseBehavior hint */
+typedef RGFW_ENUM(i32, RGFW_glReleaseBehavior)   {
+	RGFW_glReleaseFlush = 0, /*!< flush the pipeline will be flushed when the context is release */
+	RGFW_glReleaseNone /*!< do nothing on release */
+};
 
+/*! values for the profile hint */
+typedef RGFW_ENUM(i32, RGFW_glProfile)  {
+	RGFW_glCore = 0, /*!< the core OpenGL version, e.g. just support for that version */
+	RGFW_glCompatibility, /*!< allow compatibility for older versions of RGFW as well as the requested version */
+	RGFW_glES /*!< use OpenGL ES */
+};
+
+/*! values for the renderer hint */
+typedef RGFW_ENUM(i32, RGFW_glRenderer)  {
+	RGFW_glAccelerated = 0, /*!< hardware accelerated (GPU) */
+	RGFW_glSoftware /*!< software rendered (CPU) */
+};
+
+/*! OpenGL initalization hints */
 typedef struct RGFW_glHints {
 	i32 stencil;  /*!< set stencil buffer bit size (0 by default) */
 	i32 samples; /*!< set number of sample buffers (0 by default) */
@@ -1295,13 +955,1161 @@ typedef struct RGFW_glHints {
 	RGFW_glRenderer renderer; /*!< renderer to use e.g. accelerated or software defaults to accelerated */
 } RGFW_glHints;
 
-/*! set global OpenGL hints to your pointer */
-RGFWDEF void RGFW_setGlobalHints_OpenGL(RGFW_glHints* hints);
-/*! reset global OpenGL hints to the defaults */
-RGFWDEF void RGFW_resetGlobalHints_OpenGL(void);
-/*! get the current global OpenGL hint pointer */
-RGFWDEF RGFW_glHints* RGFW_getGlobalHints_OpenGL(void);
+#endif
 
+/**!
+ * @brief Allocates memory using the allocator defined by RGFW_ALLOC at compile time.
+ * @param size The size (in bytes) of the memory block to allocate.
+ * @return A pointer to the allocated memory block.
+*/
+RGFWDEF void* RGFW_alloc(size_t size);
+
+/**!
+ * @brief Frees memory using the deallocator defined by RGFW_FREE at compile time.
+ * @param ptr A pointer to the memory block to free.
+*/
+RGFWDEF void RGFW_free(void* ptr);
+
+/**!
+ * @brief Returns the size (in bytes) of the RGFW_window structure.
+ * @return The size of the RGFW_window structure.
+*/
+RGFWDEF size_t RGFW_sizeofWindow(void);
+
+/**!
+ * @brief Returns the size (in bytes) of the RGFW_window_src structure.
+ * @return The size of the RGFW_window_src structure.
+*/
+RGFWDEF size_t RGFW_sizeofWindowSrc(void);
+
+/**!
+ * @brief (Unix) Toggles the use of Wayland.
+ * This is enabled by default when compiled with `RGFW_WAYLAND`.
+ * If not using `RGFW_WAYLAND`, Wayland functions are not exposed.
+ * This function can be used to force the use of XWayland.
+ * @param wayland A boolean value indicating whether to use Wayland (true) or not (false).
+*/
+RGFWDEF void RGFW_useWayland(RGFW_bool wayland);
+
+/**!
+ * @brief Checks if Wayland is currently being used.
+ * @return RGFW_TRUE if using Wayland, RGFW_FALSE otherwise.
+*/
+RGFWDEF RGFW_bool RGFW_usingWayland(void);
+
+/**!
+ * @brief Retrieves the current Cocoa layer (macOS only).
+ * @return A pointer to the Cocoa layer, or NULL if the platform is not in use.
+*/
+RGFWDEF void* RGFW_getLayer_OSX(void);
+
+/**!
+ * @brief Retrieves the current X11 display connection.
+ * @return A pointer to the X11 display, or NULL if the platform is not in use.
+*/
+RGFWDEF void* RGFW_getDisplay_X11(void);
+
+/**!
+ * @brief Retrieves the current Wayland display connection.
+ * @return A pointer to the Wayland display (`struct wl_display*`), or NULL if the platform is not in use.
+*/
+RGFWDEF struct wl_display* RGFW_getDisplay_Wayland(void);
+
+/**!
+ * @brief Sets the class name for X11 and WinAPI windows.
+ * Windows with the same class name will be grouped by the window manager.
+ * By default, the class name matches the root window’s name.
+ * @param name The class name to assign.
+*/
+RGFWDEF void RGFW_setClassName(const char* name);
+
+/**!
+ * @brief Sets the X11 instance name.
+ * By default, the window name will be used as the instance name.
+ * @param name The X11 instance name to set.
+*/
+RGFWDEF void RGFW_setXInstName(const char* name);
+
+/**!
+ * @brief (macOS only) Changes the current working directory to the application’s resource folder.
+*/
+RGFWDEF void RGFW_moveToMacOSResourceDir(void);
+
+/*! copy image to another image, respecting each image's format */
+RGFWDEF void RGFW_copyImageData(u8* dest_data, i32 w, i32 h, RGFW_format dest_format, u8* src_data, RGFW_format src_format);
+
+/**!
+ * @brief Returns the size (in bytes) of the RGFW_nativeImage structure.
+ * @return The size of the RGFW_nativeImage structure.
+*/
+RGFWDEF size_t RGFW_sizeofNativeImage(void);
+
+/**!
+ * @brief Returns the size (in bytes) of the RGFW_surface structure.
+ * @return The size of the RGFW_surface structure.
+*/
+RGFWDEF size_t RGFW_sizeofSurface(void);
+
+/**!
+ * @brief Creates a new surface from raw pixel data.
+ * @param data A pointer to the pixel data buffer.
+ * @param w The width of the surface in pixels.
+ * @param h The height of the surface in pixels.
+ * @param format The pixel format of the data.
+ * @return A pointer to the newly created RGFW_surface.
+ *
+ * NOTE: when you create a surface using RGFW_createSurface / ptr, on X11 it uses the root window's visual
+ * this means it may fail to render on any other window if the visual does not match
+ * RGFW_window_createSurface and RGFW_window_createSurfacePtr exist only for X11 to address this issues
+ * Of course, you can also manually set the root window with RGFW_setRootWindow
+*/
+RGFWDEF RGFW_surface* RGFW_createSurface(u8* data, i32 w, i32 h, RGFW_format format);
+
+/**!
+ * @brief Creates a surface using a pre-allocated RGFW_surface structure.
+ * @param data A pointer to the pixel data buffer.
+ * @param w The width of the surface in pixels.
+ * @param h The height of the surface in pixels.
+ * @param format The pixel format of the data.
+ * @param surface A pointer to a pre-allocated RGFW_surface structure.
+ * @return RGFW_TRUE if successful, RGFW_FALSE otherwise.
+*/
+RGFWDEF RGFW_bool RGFW_createSurfacePtr(u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface);
+
+/**!
+ * @brief Retrieves the native image associated with a surface.
+ * @param surface A pointer to the RGFW_surface.
+ * @return A pointer to the native RGFW_nativeImage associated with the surface.
+*/
+RGFWDEF RGFW_nativeImage* RGFW_surface_getNativeImage(RGFW_surface* surface);
+
+/**!
+ * @brief Frees the surface pointer and any buffers used for software rendering.
+ * @param surface A pointer to the RGFW_surface to free.
+*/
+RGFWDEF void RGFW_surface_free(RGFW_surface* surface);
+
+/**!
+ * @brief Frees only the internal buffers used for software rendering, leaving the surface struct intact.
+ * @param surface A pointer to the RGFW_surface whose buffers should be freed.
+*/
+RGFWDEF void RGFW_surface_freePtr(RGFW_surface* surface);
+
+
+/**!
+ * @brief Loads a mouse icon from bitmap data (similar to RGFW_window_setIcon).
+ * @param data A pointer to the bitmap pixel data.
+ * @param w The width of the mouse icon in pixels.
+ * @param h The height of the mouse icon in pixels.
+ * @param format The pixel format of the data.
+ * @return A pointer to the newly loaded RGFW_mouse structure.
+ *
+ * @note The icon is not resized by default.
+*/
+RGFWDEF RGFW_mouse* RGFW_loadMouse(u8* data, i32 w, i32 h, RGFW_format format);
+
+/**!
+ * @brief Frees the data associated with an RGFW_mouse structure.
+ * @param mouse A pointer to the RGFW_mouse to free.
+*/
+RGFWDEF void RGFW_freeMouse(RGFW_mouse* mouse);
+
+#ifndef RGFW_NO_MONITOR
+
+/**!
+ * @brief Retrieves an array of all available monitors.
+ * @param len [OUTPUT] A pointer to store the number of monitors found (maximum of 6).
+ * @return A pointer to an array of RGFW_monitor structures.
+*/
+RGFWDEF RGFW_monitor* RGFW_getMonitors(size_t* len);
+
+/**!
+ * @brief Retrieves the primary monitor.
+ * @return The RGFW_monitor structure representing the primary monitor.
+*/
+RGFWDEF RGFW_monitor RGFW_getPrimaryMonitor(void);
+
+/**!
+ * @brief Requests a specific display mode for a monitor.
+ * @param mon The monitor to apply the mode change to.
+ * @param mode The desired RGFW_monitorMode.
+ * @param request The RGFW_modeRequest describing how to handle the mode change.
+ * @return RGFW_TRUE if the mode was successfully applied, otherwise RGFW_FALSE.
+*/
+RGFWDEF RGFW_bool RGFW_monitor_requestMode(RGFW_monitor mon, RGFW_monitorMode mode, RGFW_modeRequest request);
+
+/**!
+ * @brief Compares two monitor modes to check if they are equivalent.
+ * @param mon The first monitor mode.
+ * @param mon2 The second monitor mode.
+ * @param request The RGFW_modeRequest that defines the comparison parameters.
+ * @return RGFW_TRUE if both modes are equivalent, otherwise RGFW_FALSE.
+*/
+RGFWDEF RGFW_bool RGFW_monitorModeCompare(RGFW_monitorMode mon, RGFW_monitorMode mon2, RGFW_modeRequest request);
+
+/**!
+ * @brief Scales a monitor’s mode to match a window’s size.
+ * @param mon The monitor to be scaled.
+ * @param win The window whose size should be used as a reference.
+ * @return RGFW_TRUE if the scaling was successful, otherwise RGFW_FALSE.
+*/
+RGFWDEF RGFW_bool RGFW_monitor_scaleToWindow(RGFW_monitor mon, struct RGFW_window* win);
+
+#endif
+
+/**!
+* @brief sleep until RGFW gets an event or the timer ends (defined by OS)
+* @param waitMS how long to wait for the next event (in miliseconds)
+*/
+RGFWDEF void RGFW_waitForEvent(i32 waitMS);
+
+/**!
+* @brief Set if events should be queued or not (enabled by default if the event queue is checked)
+* @param queue boolean value if RGFW should queue events or not
+*/
+RGFWDEF void RGFW_setQueueEvents(RGFW_bool queue);
+
+/**!
+* @brief check all the events until there are none left and updates window structure attributes
+*/
+RGFWDEF void RGFW_pollEvents(void);
+
+/**!
+* @brief check all the events until there are none left and updates window structure attributes
+* queues events if the queue is checked and/or requested
+*/
+RGFWDEF void RGFW_stopCheckEvents(void);
+
+/** * @defgroup Input
+* @{ */
+
+/**!
+ * @brief returns true if the key is pressed during the current frame
+ * @param key the key code of the key you want to check
+ * @return The boolean value if the key is pressed or not
+*/
+RGFWDEF RGFW_bool RGFW_isKeyPressed(RGFW_key key);
+
+/**!
+ * @brief returns true if the key was released during the current frame
+ * @param key the key code of the key you want to check
+ * @return The boolean value if the key is released or not
+*/
+RGFWDEF RGFW_bool RGFW_isKeyReleased(RGFW_key key);
+
+/**!
+ * @brief returns true if the key is down
+ * @param key the key code of the key you want to check
+ * @return The boolean value if the key is down or not
+*/
+RGFWDEF RGFW_bool RGFW_isKeyDown(RGFW_key key);
+
+/**!
+ * @brief returns true if the mouse button is pressed during the current frame
+ * @param button the mouse button code of the button you want to check
+ * @return The boolean value if the button is pressed or not
+*/
+RGFWDEF RGFW_bool RGFW_isMousePressed(RGFW_mouseButton button);
+
+/**!
+ * @brief returns true if the mouse button is released during the current frame
+ * @param button the mouse button code of the button you want to check
+ * @return The boolean value if the button is released or not
+*/
+RGFWDEF RGFW_bool RGFW_isMouseReleased(RGFW_mouseButton button);
+
+/**!
+ * @brief returns true if the mouse button is down
+ * @param button the mouse button code of the button you want to check
+ * @return The boolean value if the button is down or not
+*/
+RGFWDEF RGFW_bool RGFW_isMouseDown(RGFW_mouseButton button);
+
+/**!
+ * @brief outputs the current x, y position of the mouse
+ * @param X [OUTPUT] a pointer for the output X value
+ * @param Y [OUTPUT] a pointer for the output Y value
+*/
+RGFWDEF void RGFW_getMouseScroll(float* x, float* y);
+
+/**!
+ * @brief outputs the current x, y movement vector of the mouse
+ * @param X [OUTPUT] a pointer for the output X vector value
+ * @param Y [OUTPUT] a pointer for the output Y vector value
+*/
+RGFWDEF void RGFW_getMouseVector(float* x, float* y);
+/** @} */
+
+/**!
+ * @brief creates a new window
+ * @param name the requested title of the window
+ * @param x the requested x position of the window
+ * @param y the requested y position of the window
+ * @param w the requested width of the window
+ * @param h the requested height of the window
+ * @param flags extra arguments ((u32)0 means no flags used)
+ * @return A pointer to the newly created window structure
+ *
+ * NOTE: (windows) if the executable has an icon resource named RGFW_ICON, it will be set as the initial icon for the window
+*/
+RGFWDEF RGFW_window* RGFW_createWindow(const char* name, i32 x, i32 y, i32 w, i32 h,  RGFW_windowFlags flags);
+
+/**!
+ * @brief creates a new window using a pre-allocated window structure
+ * @param name the requested title of the window
+ * @param x the requested x position of the window
+ * @param y the requested y position of the window
+ * @param w the requested width of the window
+ * @param h the requested height of the window
+ * @param flags extra arguments ((u32)0 means no flags used)
+ * @param win a pointer the pre-allocated window structure
+ * @return A pointer to the newly created window structure
+*/
+RGFWDEF RGFW_window* RGFW_createWindowPtr(const char* name, i32 x, i32 y, i32 w, i32 h, RGFW_windowFlags flags, RGFW_window* win);
+
+/**!
+ * @brief creates a new surface structure
+ * @param win the source window of the surface
+ * @param data a pointer to the raw data of the structure (you allocate this)
+ * @param w the width the data
+ * @param h the height of the data
+ * @return A pointer to the newly created surface structure
+ *
+ * NOTE: when you create a surface using RGFW_createSurface / ptr, on X11 it uses the root window's visual
+ * this means it may fail to render on any other window if the visual does not match
+ * RGFW_window_createSurface and RGFW_window_createSurfacePtr exist only for X11 to address this issues
+ * Of course, you can also manually set the root window with RGFW_setRootWindow
+ */
+RGFWDEF RGFW_surface* RGFW_window_createSurface(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format);
+
+/**!
+ * @brief creates a new surface structure using a pre-allocated surface structure
+ * @param win the source window of the surface
+ * @param data a pointer to the raw data of the structure (you allocate this)
+ * @param w the width the data
+ * @param h the height of the data
+ * @param a pointer to the pre-allocated surface structure
+ * @return a bool if the creation was successful or not
+*/
+RGFWDEF RGFW_bool RGFW_window_createSurfacePtr(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format, RGFW_surface* surface);
+
+/**!
+ * @brief blits a surface stucture to the window
+ * @param win a pointer the window to blit to
+ * @param surface a pointer to the surface
+*/
+RGFWDEF void RGFW_window_blitSurface(RGFW_window* win, RGFW_surface* surface);
+
+/**!
+ * @brief gets the position of the window | with RGFW_window.x and window.y
+ * @param x [OUTPUT] the x position of the window
+ * @param y [OUTPUT] the y position of the window
+ * @return a bool if the function was successful
+*/
+RGFWDEF RGFW_bool RGFW_window_getPosition(RGFW_window* win, i32* x, i32* y); /*!<  */
+
+/**!
+ * @brief gets the size of the window | with RGFW_window.w and window.h
+ * @param win a pointer to the window
+ * @param w [OUTPUT] the width of the window
+ * @param h [OUTPUT] the height of the window
+ * @return a bool if the function was successful
+*/
+RGFWDEF RGFW_bool RGFW_window_getSize(RGFW_window* win, i32* w, i32* h);
+
+/**!
+ * @brief gets the flags of the window | returns RGFW_window._flags
+ * @param win a pointer to the window
+ * @return the window flags
+*/
+RGFWDEF u32 RGFW_window_getFlags(RGFW_window* win);
+
+/**!
+ * @brief returns the exit key assigned to the window
+ * @param win a pointer to the target window
+ * @return The key code assigned as the exit key
+*/
+RGFWDEF RGFW_key RGFW_window_getExitKey(RGFW_window* win);
+
+/**!
+ * @brief sets the exit key for the window
+ * @param win a pointer to the target window
+ * @param key the key code to assign as the exit key
+*/
+RGFWDEF void RGFW_window_setExitKey(RGFW_window* win, RGFW_key key);
+
+/**!
+ * @brief sets the types of events you want the window to receive
+ * @param win a pointer to the target window
+ * @param events the event flags to enable (use RGFW_allEventFlags for all)
+*/
+RGFWDEF void RGFW_window_setEnabledEvents(RGFW_window* win, RGFW_eventFlag events);
+
+/**!
+ * @brief gets the currently enabled events for the window
+ * @param win a pointer to the target window
+ * @return The enabled event flags for the window
+*/
+RGFWDEF RGFW_eventFlag RGFW_window_getEnabledEvents(RGFW_window* win);
+
+/**!
+ * @brief enables all events and disables selected ones
+ * @param win a pointer to the target window
+ * @param events the event flags to disable
+*/
+RGFWDEF void RGFW_window_setDisabledEvents(RGFW_window* win, RGFW_eventFlag events);
+
+/**!
+ * @brief directly enables or disables a specific event or group of events
+ * @param win a pointer to the target window
+ * @param event the event flag or group of flags to modify
+ * @param state RGFW_TRUE to enable, RGFW_FALSE to disable
+*/
+RGFWDEF void RGFW_window_setEventState(RGFW_window* win, RGFW_eventFlag event, RGFW_bool state);
+
+/**!
+ * @brief gets the user pointer associated with the window
+ * @param win a pointer to the target window
+ * @return The user-defined pointer stored in the window
+*/
+RGFWDEF void* RGFW_window_getUserPtr(RGFW_window* win);
+
+/**!
+ * @brief sets a user pointer for the window
+ * @param win a pointer to the target window
+ * @param ptr a pointer to associate with the window
+*/
+RGFWDEF void RGFW_window_setUserPtr(RGFW_window* win, void* ptr);
+
+/**!
+ * @brief retrieves the platform-specific window source pointer
+ * @param win a pointer to the target window
+ * @return A pointer to the internal RGFW_window_src structure
+*/
+RGFWDEF RGFW_window_src* RGFW_window_getSrc(RGFW_window* win);
+
+/**!
+ * @brief sets the macOS layer object associated with the window
+ * @param win a pointer to the target window
+ * @param layer a pointer to the macOS layer object
+ * @note Only available on macOS platforms
+*/
+RGFWDEF void RGFW_window_setLayer_OSX(RGFW_window* win, void* layer);
+
+/**!
+ * @brief retrieves the macOS view object associated with the window
+ * @param win a pointer to the target window
+ * @return A pointer to the macOS view object, or NULL if not on macOS
+*/
+RGFWDEF void* RGFW_window_getView_OSX(RGFW_window* win);
+
+/**!
+ * @brief retrieves the macOS window object
+ * @param win a pointer to the target window
+ * @return A pointer to the macOS window object, or NULL if not on macOS
+*/
+RGFWDEF void* RGFW_window_getWindow_OSX(RGFW_window* win);
+
+/**!
+ * @brief retrieves the HWND handle for the window
+ * @param win a pointer to the target window
+ * @return A pointer to the Windows HWND handle, or NULL if not on Windows
+*/
+RGFWDEF void* RGFW_window_getHWND(RGFW_window* win);
+
+/**!
+ * @brief retrieves the HDC handle for the window
+ * @param win a pointer to the target window
+ * @return A pointer to the Windows HDC handle, or NULL if not on Windows
+*/
+RGFWDEF void* RGFW_window_getHDC(RGFW_window* win);
+
+/**!
+ * @brief retrieves the X11 Window handle for the window
+ * @param win a pointer to the target window
+ * @return The X11 Window handle, or 0 if not on X11
+*/
+RGFWDEF u64 RGFW_window_getWindow_X11(RGFW_window* win);
+
+/**!
+ * @brief retrieves the Wayland surface handle for the window
+ * @param win a pointer to the target window
+ * @return A pointer to the Wayland wl_surface, or NULL if not on Wayland
+*/
+RGFWDEF struct wl_surface* RGFW_window_getWindow_Wayland(RGFW_window* win);
+
+/** * @defgroup Window_management
+* @{ */
+
+/*! set the window flags (will undo flags if they don't match the old ones) */
+RGFWDEF void RGFW_window_setFlags(RGFW_window* win, RGFW_windowFlags);
+
+/**!
+ * @brief polls and pops the next event from the window's event queue
+ * @param win a pointer to the target window
+ * @param event [OUTPUT] a pointer to store the retrieved event
+ * @return RGFW_TRUE if an event was found, RGFW_FALSE otherwise
+ *
+ * NOTE: Using this function without a loop may cause event lag.
+ * For multi-threaded systems, use RGFW_pollEvents combined with RGFW_window_checkQueuedEvent.
+ *
+ * Example:
+ * RGFW_event event;
+ * while (RGFW_window_checkEvent(win, &event)) {
+ *     // handle event
+ * }
+*/
+RGFWDEF RGFW_bool RGFW_window_checkEvent(RGFW_window* win, RGFW_event* event);
+
+/**!
+ * @brief pops the first queued event for the window
+ * @param win a pointer to the target window
+ * @param event [OUTPUT] a pointer to store the retrieved event
+ * @return RGFW_TRUE if an event was found, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_checkQueuedEvent(RGFW_window* win, RGFW_event* event);
+
+/**!
+ * @brief checks if a key was pressed while the window is in focus
+ * @param win a pointer to the target window
+ * @param key the key code to check
+ * @return RGFW_TRUE if the key was pressed, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isKeyPressed(RGFW_window* win, RGFW_key key);
+
+/**!
+ * @brief checks if a key is currently being held down
+ * @param win a pointer to the target window
+ * @param key the key code to check
+ * @return RGFW_TRUE if the key is held down, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isKeyDown(RGFW_window* win, RGFW_key key);
+
+/**!
+ * @brief checks if a key was released
+ * @param win a pointer to the target window
+ * @param key the key code to check
+ * @return RGFW_TRUE if the key was released, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isKeyReleased(RGFW_window* win, RGFW_key key);
+
+/**!
+ * @brief checks if a mouse button was pressed
+ * @param win a pointer to the target window
+ * @param button the mouse button code to check
+ * @return RGFW_TRUE if the mouse button was pressed, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isMousePressed(RGFW_window* win, RGFW_mouseButton button);
+
+/**!
+ * @brief checks if a mouse button is currently held down
+ * @param win a pointer to the target window
+ * @param button the mouse button code to check
+ * @return RGFW_TRUE if the mouse button is down, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isMouseDown(RGFW_window* win, RGFW_mouseButton button);
+
+/**!
+ * @brief checks if a mouse button was released
+ * @param win a pointer to the target window
+ * @param button the mouse button code to check
+ * @return RGFW_TRUE if the mouse button was released, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isMouseReleased(RGFW_window* win, RGFW_mouseButton button);
+
+/**!
+ * @brief checks if the mouse left the window (true only for the first frame)
+ * @param win a pointer to the target window
+ * @return RGFW_TRUE if the mouse left, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_didMouseLeave(RGFW_window* win);
+
+/**!
+ * @brief checks if the mouse entered the window (true only for the first frame)
+ * @param win a pointer to the target window
+ * @return RGFW_TRUE if the mouse entered, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_didMouseEnter(RGFW_window* win);
+
+/**!
+ * @brief checks if the mouse is currently inside the window bounds
+ * @param win a pointer to the target window
+ * @return RGFW_TRUE if the mouse is inside, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isMouseInside(RGFW_window* win);
+
+/**!
+ * @brief checks if there is data being dragged into or within the window
+ * @param win a pointer to the target window
+ * @return RGFW_TRUE if data is being dragged, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isDataDragging(RGFW_window* win);
+
+/**!
+ * @brief gets the position of a data drag
+ * @param win a pointer to the target window
+ * @param x [OUTPUT] pointer to store the x position
+ * @param y [OUTPUT] pointer to store the y position
+ * @return RGFW_TRUE if there is an active drag, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_getDataDrag(RGFW_window* win, i32* x, i32* y);
+
+/**!
+ * @brief checks if a data drop occurred in the window (first frame only)
+ * @param win a pointer to the target window
+ * @return RGFW_TRUE if data was dropped, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_didDataDrop(RGFW_window* win);
+
+/**!
+ * @brief retrieves files from a data drop (drag and drop)
+ * @param win a pointer to the target window
+ * @param files [OUTPUT] a pointer to the array of file paths
+ * @param count [OUTPUT] the number of dropped files
+ * @return RGFW_TRUE if a data drop occurred, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_getDataDrop(RGFW_window* win, const char*** files, size_t* count);
+
+/**!
+ * @brief closes the window and frees its associated structure
+ * @param win a pointer to the target window
+*/
+RGFWDEF void RGFW_window_close(RGFW_window* win);
+
+/**!
+ * @brief closes the window without freeing its structure
+ * @param win a pointer to the target window
+*/
+RGFWDEF void RGFW_window_closePtr(RGFW_window* win);
+
+/**!
+ * @brief moves the window to a new position on the screen
+ * @param win a pointer to the target window
+ * @param x the new x position
+ * @param y the new y position
+*/
+RGFWDEF void RGFW_window_move(RGFW_window* win, i32 x, i32 y);
+
+#ifndef RGFW_NO_MONITOR
+/**!
+ * @brief moves the window to a specific monitor
+ * @param win a pointer to the target window
+ * @param m the target monitor
+*/
+RGFWDEF void RGFW_window_moveToMonitor(RGFW_window* win, RGFW_monitor m);
+#endif
+
+/**!
+ * @brief resizes the window to the given dimensions
+ * @param win a pointer to the target window
+ * @param w the new width
+ * @param h the new height
+*/
+RGFWDEF void RGFW_window_resize(RGFW_window* win, i32 w, i32 h);
+
+/**!
+ * @brief sets the aspect ratio of the window
+ * @param win a pointer to the target window
+ * @param w the width ratio
+ * @param h the height ratio
+*/
+RGFWDEF void RGFW_window_setAspectRatio(RGFW_window* win, i32 w, i32 h);
+
+/**!
+ * @brief sets the minimum size of the window
+ * @param win a pointer to the target window
+ * @param w the minimum width
+ * @param h the minimum height
+*/
+RGFWDEF void RGFW_window_setMinSize(RGFW_window* win, i32 w, i32 h);
+
+/**!
+ * @brief sets the maximum size of the window
+ * @param win a pointer to the target window
+ * @param w the maximum width
+ * @param h the maximum height
+*/
+RGFWDEF void RGFW_window_setMaxSize(RGFW_window* win, i32 w, i32 h);
+
+/**!
+ * @brief sets focus to the window
+ * @param win a pointer to the target window
+*/
+RGFWDEF void RGFW_window_focus(RGFW_window* win);
+
+/**!
+ * @brief checks if the window is currently in focus
+ * @param win a pointer to the target window
+ * @return RGFW_TRUE if the window is in focus, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_isInFocus(RGFW_window* win);
+
+/**!
+ * @brief raises the window to the top of the stack
+ * @param win a pointer to the target window
+*/
+RGFWDEF void RGFW_window_raise(RGFW_window* win);
+
+/**!
+ * @brief maximizes the window
+ * @param win a pointer to the target window
+*/
+RGFWDEF void RGFW_window_maximize(RGFW_window* win);
+
+/**!
+ * @brief toggles fullscreen mode for the window
+ * @param win a pointer to the target window
+ * @param fullscreen RGFW_TRUE to enable fullscreen, RGFW_FALSE to disable
+*/
+RGFWDEF void RGFW_window_setFullscreen(RGFW_window* win, RGFW_bool fullscreen);
+
+/**!
+ * @brief centers the window on the screen
+ * @param win a pointer to the target window
+*/
+RGFWDEF void RGFW_window_center(RGFW_window* win);
+
+/**!
+ * @brief minimizes the window
+ * @param win a pointer to the target window
+*/
+RGFWDEF void RGFW_window_minimize(RGFW_window* win);
+
+/**!
+ * @brief restores the window from minimized state
+ * @param win a pointer to the target window
+*/
+RGFWDEF void RGFW_window_restore(RGFW_window* win);
+
+/**!
+ * @brief makes the window a floating window
+ * @param win a pointer to the target window
+ * @param floating RGFW_TRUE to float, RGFW_FALSE to disable
+*/
+RGFWDEF void RGFW_window_setFloating(RGFW_window* win, RGFW_bool floating);
+
+/**!
+ * @brief sets the opacity level of the window
+ * @param win a pointer to the target window
+ * @param opacity the opacity level (0–255)
+*/
+RGFWDEF void RGFW_window_setOpacity(RGFW_window* win, u8 opacity);
+
+/**!
+ * @brief toggles window borders
+ * @param win a pointer to the target window
+ * @param border RGFW_TRUE for bordered, RGFW_FALSE for borderless
+*/
+RGFWDEF void RGFW_window_setBorder(RGFW_window* win, RGFW_bool border);
+
+/**!
+ * @brief checks if the window is borderless
+ * @param win a pointer to the target window
+ * @return RGFW_TRUE if borderless, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_borderless(RGFW_window* win);
+
+/**!
+ * @brief toggles drag-and-drop (DND) support for the window
+ * @param win a pointer to the target window
+ * @param allow RGFW_TRUE to allow DND, RGFW_FALSE to disable
+ * @note RGFW_windowAllowDND must still be passed when creating the window
+*/
+RGFWDEF void RGFW_window_setDND(RGFW_window* win, RGFW_bool allow);
+
+/**!
+ * @brief checks if drag-and-drop (DND) is allowed
+ * @param win a pointer to the target window
+ * @return RGFW_TRUE if DND is enabled, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_allowsDND(RGFW_window* win);
+
+#ifndef RGFW_NO_PASSTHROUGH
+/**!
+ * @brief toggles mouse passthrough for the window
+ * @param win a pointer to the target window
+ * @param passthrough RGFW_TRUE to enable passthrough, RGFW_FALSE to disable
+*/
+RGFWDEF void RGFW_window_setMousePassthrough(RGFW_window* win, RGFW_bool passthrough);
+#endif
+
+/**!
+ * @brief renames the window
+ * @param win a pointer to the target window
+ * @param name the new title string for the window
+*/
+RGFWDEF void RGFW_window_setName(RGFW_window* win, const char* name);
+
+/**!
+ * @brief sets the icon for the window and taskbar
+ * @param win a pointer to the target window
+ * @param data the image data
+ * @param w the width of the icon
+ * @param h the height of the icon
+ * @param format the image format
+ * @return RGFW_TRUE if successful, RGFW_FALSE otherwise
+ *
+ * NOTE: The image may be resized by default.
+*/
+RGFWDEF RGFW_bool RGFW_window_setIcon(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format);
+
+/**!
+ * @brief sets the icon for the window and/or taskbar
+ * @param win a pointer to the target window
+ * @param data the image data
+ * @param w the width of the icon
+ * @param h the height of the icon
+ * @param format the image format
+ * @param type the target icon type (taskbar, window, or both)
+ * @return RGFW_TRUE if successful, RGFW_FALSE otherwise
+*/
+RGFWDEF RGFW_bool RGFW_window_setIconEx(RGFW_window* win, u8* data, i32 w, i32 h, RGFW_format format, RGFW_icon type);
+
+/**!
+ * @brief sets the mouse icon for the window using a loaded bitmap
+ * @param win a pointer to the target window
+ * @param mouse a pointer to the RGFW_mouse struct containing the icon
+*/
+RGFWDEF void RGFW_window_setMouse(RGFW_window* win, RGFW_mouse* mouse);
+
+/**!
+ * @brief Sets the mouse to a standard system cursor.
+ * @param win The target window.
+ * @param mouse The standard cursor type (see RGFW_MOUSE enum).
+ * @return True if the standard cursor was successfully applied.
+*/
+RGFWDEF RGFW_bool RGFW_window_setMouseStandard(RGFW_window* win, RGFW_mouseIcons mouse);
+
+/**!
+ * @brief Sets the mouse to the default cursor icon.
+ * @param win The target window.
+ * @return True if the default cursor was successfully set.
+*/
+RGFWDEF RGFW_bool RGFW_window_setMouseDefault(RGFW_window* win);
+
+/**!
+ * @brief Locks the cursor to the center of the window.
+ * @param win The target window.
+ *
+ * While the cursor is held, X and Y report raw mouse movement data.
+ * Useful for 3D camera or first-person movement systems.
+*/
+RGFWDEF void RGFW_window_holdMouse(RGFW_window* win);
+
+/**!
+ * @brief Returns true if the mouse is currently held by RGFW.
+ * @param win The target window.
+ * @return True if the mouse is being held.
+*/
+RGFWDEF RGFW_bool RGFW_window_isHoldingMouse(RGFW_window* win);
+
+/**!
+ * @brief Releases the mouse so it can move freely again.
+ * @param win The target window.
+*/
+RGFWDEF void RGFW_window_unholdMouse(RGFW_window* win);
+
+/**!
+ * @brief Hides the window from view.
+ * @param win The target window.
+*/
+RGFWDEF void RGFW_window_hide(RGFW_window* win);
+
+/**!
+ * @brief Shows the window if it was hidden.
+ * @param win The target window.
+*/
+RGFWDEF void RGFW_window_show(RGFW_window* win);
+
+/**!
+ * @brief Sets whether the window should close.
+ * @param win The target window.
+ * @param shouldClose True to signal the window should close, false to keep it open.
+ *
+ * This can override or trigger the `RGFW_window_shouldClose` state by modifying window flags.
+*/
+RGFWDEF void RGFW_window_setShouldClose(RGFW_window* win, RGFW_bool shouldClose);
+
+/**!
+ * @brief Retrieves the current global mouse position.
+ * @param x [OUTPUT] Pointer to store the X position of the mouse on the screen.
+ * @param y [OUTPUT] Pointer to store the Y position of the mouse on the screen.
+ * @return True if the position was successfully retrieved.
+*/
+RGFWDEF RGFW_bool RGFW_getGlobalMouse(i32* x, i32* y);
+
+/**!
+ * @brief Retrieves the mouse position relative to the window.
+ * @param win The target window.
+ * @param x [OUTPUT] Pointer to store the X position within the window.
+ * @param y [OUTPUT] Pointer to store the Y position within the window.
+ * @return True if the position was successfully retrieved.
+*/
+RGFWDEF RGFW_bool RGFW_window_getMouse(RGFW_window* win, i32* x, i32* y);
+
+/**!
+ * @brief Shows or hides the mouse cursor for the window.
+ * @param win The target window.
+ * @param show True to show the mouse, false to hide it.
+*/
+RGFWDEF void RGFW_window_showMouse(RGFW_window* win, RGFW_bool show);
+
+/**!
+ * @brief Checks if the mouse is currently hidden in the window.
+ * @param win The target window.
+ * @return True if the mouse is hidden.
+*/
+RGFWDEF RGFW_bool RGFW_window_isMouseHidden(RGFW_window* win);
+
+/**!
+ * @brief Moves the mouse to the specified position within the window.
+ * @param win The target window.
+ * @param x The new X position.
+ * @param y The new Y position.
+*/
+RGFWDEF void RGFW_window_moveMouse(RGFW_window* win, i32 x, i32 y);
+
+/**!
+ * @brief Checks if the window should close.
+ * @param win The target window.
+ * @return True if the window should close (for example, if ESC was pressed or a close event occurred).
+*/
+RGFWDEF RGFW_bool RGFW_window_shouldClose(RGFW_window* win);
+
+/**!
+ * @brief Checks if the window is currently fullscreen.
+ * @param win The target window.
+ * @return True if the window is fullscreen.
+*/
+RGFWDEF RGFW_bool RGFW_window_isFullscreen(RGFW_window* win);
+
+/**!
+ * @brief Checks if the window is currently hidden.
+ * @param win The target window.
+ * @return True if the window is hidden.
+*/
+RGFWDEF RGFW_bool RGFW_window_isHidden(RGFW_window* win);
+
+/**!
+ * @brief Checks if the window is minimized.
+ * @param win The target window.
+ * @return True if the window is minimized.
+*/
+RGFWDEF RGFW_bool RGFW_window_isMinimized(RGFW_window* win);
+
+/**!
+ * @brief Checks if the window is maximized.
+ * @param win The target window.
+ * @return True if the window is maximized.
+*/
+RGFWDEF RGFW_bool RGFW_window_isMaximized(RGFW_window* win);
+
+/**!
+ * @brief Checks if the window is floating.
+ * @param win The target window.
+ * @return True if the window is floating.
+*/
+RGFWDEF RGFW_bool RGFW_window_isFloating(RGFW_window* win);
+/** @} */
+
+/** * @defgroup Monitor
+* @{ */
+
+#ifndef RGFW_NO_MONITOR
+/**!
+ * @brief Scales the window to match its monitor’s resolution.
+ * @param win The target window.
+ *
+ * This function is automatically called when the flag `RGFW_scaleToMonitor`
+ * is used during window creation.
+*/
+RGFWDEF void RGFW_window_scaleToMonitor(RGFW_window* win);
+
+/**!
+ * @brief Retrieves the monitor structure associated with the window.
+ * @param win The target window.
+ * @return The monitor structure of the window.
+*/
+RGFWDEF RGFW_monitor RGFW_window_getMonitor(RGFW_window* win);
+#endif
+
+/** @} */
+
+/** * @defgroup Clipboard
+* @{ */
+
+/**!
+ * @brief Reads clipboard data.
+ * @param size [OUTPUT] A pointer that will be filled with the size of the clipboard data.
+ * @return A pointer to the clipboard data as a string.
+*/
+RGFWDEF const char* RGFW_readClipboard(size_t* size);
+
+/**!
+ * @brief Reads clipboard data into a provided buffer, or returns the required length if str is NULL.
+ * @param str [OUTPUT] A pointer to the buffer that will receive the clipboard data (or NULL to get required size).
+ * @param strCapacity The capacity of the provided buffer.
+ * @return The number of bytes read or required length of clipboard data.
+*/
+RGFWDEF RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity);
+
+/**!
+ * @brief Writes text to the clipboard.
+ * @param text The text to be written to the clipboard.
+ * @param textLen The length of the text being written.
+*/
+RGFWDEF void RGFW_writeClipboard(const char* text, u32 textLen);
+/** @} */
+
+
+
+/** * @defgroup error handling
+* @{ */
+/**!
+ * @brief Sets the callback function to handle debug messages from RGFW.
+ * @param func The function pointer to be used as the debug callback.
+ * @return The previously set debug callback function.
+*/
+RGFWDEF RGFW_debugfunc RGFW_setDebugCallback(RGFW_debugfunc func);
+
+/**!
+ * @brief Sends a debug message manually through the currently set debug callback.
+ * @param type The type of debug message being sent.
+ * @param err The associated error code.
+ * @param msg The debug message text.
+*/
+RGFWDEF void RGFW_sendDebugInfo(RGFW_debugType type, RGFW_errorCode err, const char* msg);
+/** @} */
+
+/**
+
+
+	event callbacks.
+	These are completely optional, so you can use the normal
+	RGFW_checkEvent() method if you prefer that
+
+* @defgroup Callbacks
+* @{
+*/
+
+/**!
+ * @brief Sets the callback function for window move events.
+ * @param func The function to be called when the window is moved.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_windowMovedfunc RGFW_setWindowMovedCallback(RGFW_windowMovedfunc func);
+
+/**!
+ * @brief Sets the callback function for window resize events.
+ * @param func The function to be called when the window is resized.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_windowResizedfunc RGFW_setWindowResizedCallback(RGFW_windowResizedfunc func);
+
+/**!
+ * @brief Sets the callback function for window quit events.
+ * @param func The function to be called when the window receives a quit signal.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_windowQuitfunc RGFW_setWindowQuitCallback(RGFW_windowQuitfunc func);
+
+/**!
+ * @brief Sets the callback function for mouse move events.
+ * @param func The function to be called when the mouse moves within the window.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_mousePosfunc RGFW_setMousePosCallback(RGFW_mousePosfunc func);
+
+/**!
+ * @brief Sets the callback function for window refresh events.
+ * @param func The function to be called when the window needs to be refreshed.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_windowRefreshfunc RGFW_setWindowRefreshCallback(RGFW_windowRefreshfunc func);
+
+/**!
+ * @brief Sets the callback function for focus change events.
+ * @param func The function to be called when the window gains or loses focus.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_focusfunc RGFW_setFocusCallback(RGFW_focusfunc func);
+
+/**!
+ * @brief Sets the callback function for mouse notification events.
+ * @param func The function to be called when a mouse notification event occurs.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_mouseNotifyfunc RGFW_setMouseNotifyCallback(RGFW_mouseNotifyfunc func);
+
+/**!
+ * @brief Sets the callback function for data drop events.
+ * @param func The function to be called when data is dropped into the window.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_dataDropfunc RGFW_setDataDropCallback(RGFW_dataDropfunc func);
+
+/**!
+ * @brief Sets the callback function for the start of a data drag event.
+ * @param func The function to be called when data dragging begins.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_dataDragfunc RGFW_setDataDragCallback(RGFW_dataDragfunc func);
+
+/**!
+ * @brief Sets the callback function for key press and release events.
+ * @param func The function to be called when a key is pressed or released.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_keyfunc RGFW_setKeyCallback(RGFW_keyfunc func);
+
+/**!
+ * @brief Sets the callback function for mouse button press and release events.
+ * @param func The function to be called when a mouse button is pressed or released.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_mouseButtonfunc RGFW_setMouseButtonCallback(RGFW_mouseButtonfunc func);
+
+/**!
+ * @brief Sets the callback function for mouse scroll events.
+ * @param func The function to be called when the mouse wheel is scrolled.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_mouseScrollfunc RGFW_setMouseScrollCallback(RGFW_mouseScrollfunc func);
+
+/**!
+ * @brief Sets the callback function for window maximize events.
+ * @param func The function to be called when the window is maximized.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_windowMaximizedfunc RGFW_setWindowMaximizedCallback(RGFW_windowMaximizedfunc func);
+
+/**!
+ * @brief Sets the callback function for window minimize events.
+ * @param func The function to be called when the window is minimized.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_windowMinimizedfunc RGFW_setWindowMinimizedCallback(RGFW_windowMinimizedfunc func);
+
+/**!
+ * @brief Sets the callback function for window restore events.
+ * @param func The function to be called when the window is restored from a minimized or maximized state.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_windowRestoredfunc RGFW_setWindowRestoredCallback(RGFW_windowRestoredfunc func);
+
+/**!
+ * @brief Sets the callback function for DPI (scale) update events.
+ * @param func The function to be called when the window’s DPI or scale changes.
+ * @return The previously set callback function, if any.
+*/
+RGFWDEF RGFW_scaleUpdatedfunc RGFW_setScaleUpdatedCallback(RGFW_scaleUpdatedfunc func);
+/** @} */
+
+/** * @defgroup graphics_API
+* @{ */
+
+/*! native rendering API functions */
+#if defined(RGFW_OPENGL)
 /* these are native opengl specific functions and will NOT work with EGL */
 
 /*!< make the window the current OpenGL drawing context
@@ -1312,97 +2120,307 @@ RGFWDEF RGFW_glHints* RGFW_getGlobalHints_OpenGL(void);
 	then RGFW_window_makeCurrentContext_OpenGL(valid_window) on the new thread
 */
 
+/**!
+ * @brief Sets the global OpenGL hints to the specified pointer.
+ * @param hints A pointer to the RGFW_glHints structure containing the desired OpenGL settings.
+*/
+RGFWDEF void RGFW_setGlobalHints_OpenGL(RGFW_glHints* hints);
 
-/*!< creates and allocates an OpenGL context for the RGFW window */
+/**!
+ * @brief Resets the global OpenGL hints to their default values.
+*/
+RGFWDEF void RGFW_resetGlobalHints_OpenGL(void);
+
+/**!
+ * @brief Gets the current global OpenGL hints pointer.
+ * @return A pointer to the currently active RGFW_glHints structure.
+*/
+RGFWDEF RGFW_glHints* RGFW_getGlobalHints_OpenGL(void);
+
+/**!
+ * @brief Creates and allocates an OpenGL context for the specified window.
+ * @param win A pointer to the target RGFW_window.
+ * @param hints A pointer to an RGFW_glHints structure defining context creation parameters.
+ * @return A pointer to the newly created RGFW_glContext.
+*/
 RGFWDEF RGFW_glContext* RGFW_window_createContext_OpenGL(RGFW_window* win, RGFW_glHints* hints);
-/*!< create an OpenGL context for the RGFW window using the user supplied context struct */
+
+/**!
+ * @brief Creates an OpenGL context for the specified window using a preallocated context structure.
+ * @param win A pointer to the target RGFW_window.
+ * @param ctx A pointer to an already allocated RGFW_glContext structure.
+ * @param hints A pointer to an RGFW_glHints structure defining context creation parameters.
+ * @return RGFW_TRUE on success, RGFW_FALSE on failure.
+*/
 RGFWDEF RGFW_bool RGFW_window_createContextPtr_OpenGL(RGFW_window* win, RGFW_glContext* ctx, RGFW_glHints* hints);
-/*!, get the context that is tied to the window, returns NULL if there is no context OR if the context is a EGL context */
+
+/**!
+ * @brief Retrieves the OpenGL context associated with a window.
+ * @param win A pointer to the RGFW_window.
+ * @return A pointer to the associated RGFW_glContext, or NULL if none exists or if the context is EGL-based.
+*/
 RGFWDEF RGFW_glContext* RGFW_window_getContext_OpenGL(RGFW_window* win);
-/*!< deletes and frees the opengl context | this will be automatically called by `RGFW_window_close` if the window's context is not NULL */
+
+/**!
+ * @brief Deletes and frees the OpenGL context.
+ * @param win A pointer to the RGFW_window.
+ * @param ctx A pointer to the RGFW_glContext to delete.
+ *
+ * @note This is automatically called by RGFW_window_close if the window’s context is not NULL.
+*/
 RGFWDEF void RGFW_window_deleteContext_OpenGL(RGFW_window* win, RGFW_glContext* ctx);
-/*!< deletes the opengl context | this will be automatically called by `RGFW_window_close` if the window's context is not NULL */
+
+/**!
+ * @brief Deletes the OpenGL context without freeing its memory.
+ * @param win A pointer to the RGFW_window.
+ * @param ctx A pointer to the RGFW_glContext to delete.
+ *
+ * @note This is automatically called by RGFW_window_close if the window’s context is not NULL.
+*/
 RGFWDEF void RGFW_window_deleteContextPtr_OpenGL(RGFW_window* win, RGFW_glContext* ctx);
 
+/**!
+ * @brief Retrieves the native source context from an RGFW_glContext.
+ * @param ctx A pointer to the RGFW_glContext.
+ * @return A pointer to the native OpenGL context handle.
+*/
 RGFWDEF void* RGFW_glContext_getSourceContext(RGFW_glContext* ctx);
 
-RGFWDEF void RGFW_window_makeCurrentWindow_OpenGL(RGFW_window* win); /*!< to be called by RGFW_window_makeCurrent */
-RGFWDEF void RGFW_window_makeCurrentContext_OpenGL(RGFW_window* win); /*!< to be called by RGFW_window_makeCurrent */
-RGFWDEF void RGFW_window_swapBuffers_OpenGL(RGFW_window* win); /*!< swap OpenGL buffer (only) called by RGFW_window_swapInterval  */
+/**!
+ * @brief Makes the specified window the current OpenGL rendering target.
+ * @param win A pointer to the RGFW_window to make current.
+ *
+ * @note This is typically called internally by RGFW_window_makeCurrent.
+*/
+RGFWDEF void RGFW_window_makeCurrentWindow_OpenGL(RGFW_window* win);
 
-RGFWDEF void* RGFW_getCurrentContext_OpenGL(void); /*!< get the current context (OpenGL backend (GLX) (WGL) (cocoa) (webgl))*/
-RGFWDEF RGFW_window* RGFW_getCurrentWindow_OpenGL(void); /*!< get the current window (set by RGFW_window_makeCurrentWindow) */
+/**!
+ * @brief Makes the OpenGL context of the specified window current.
+ * @param win A pointer to the RGFW_window whose context should be made current.
+ *
+ * @note To move a context between threads, call RGFW_window_makeCurrentContext_OpenGL(NULL)
+ *       on the old thread before making it current on the new one.
+*/
+RGFWDEF void RGFW_window_makeCurrentContext_OpenGL(RGFW_window* win);
 
-/*! set swapInterval / enable vsync */
+/**!
+ * @brief Swaps the OpenGL buffers for the specified window.
+ * @param win A pointer to the RGFW_window whose buffers should be swapped.
+ *
+ * @note Typically called by RGFW_window_swapInterval.
+*/
+RGFWDEF void RGFW_window_swapBuffers_OpenGL(RGFW_window* win);
+
+/**!
+ * @brief Retrieves the current OpenGL context.
+ * @return A pointer to the currently active OpenGL context (GLX, WGL, Cocoa, or WebGL backend).
+*/
+RGFWDEF void* RGFW_getCurrentContext_OpenGL(void);
+
+/**!
+ * @brief Retrieves the current OpenGL window.
+ * @return A pointer to the RGFW_window currently bound as the OpenGL context target.
+*/
+RGFWDEF RGFW_window* RGFW_getCurrentWindow_OpenGL(void);
+
+/**!
+ * @brief Sets the OpenGL swap interval (vsync).
+ * @param win A pointer to the RGFW_window.
+ * @param swapInterval The desired swap interval value (0 to disable vsync, 1 to enable).
+*/
 RGFWDEF void RGFW_window_swapInterval_OpenGL(RGFW_window* win, i32 swapInterval);
 
-RGFWDEF RGFW_proc RGFW_getProcAddress_OpenGL(const char* procname); /*!< get native OpenGL proc address */
-RGFWDEF RGFW_bool RGFW_extensionSupported_OpenGL(const char* extension, size_t len);	/*!< check if whether the specified API extension is supported by the current OpenGL or OpenGL ES context */
-RGFWDEF RGFW_bool RGFW_extensionSupportedPlatform_OpenGL(const char* extension, size_t len);	/*!< check if whether the specified platform-specific API extension is supported by the current OpenGL or OpenGL ES context */
+/**!
+ * @brief Retrieves the address of a native OpenGL procedure.
+ * @param procname The name of the OpenGL function to look up.
+ * @return A pointer to the function, or NULL if not found.
+*/
+RGFWDEF RGFW_proc RGFW_getProcAddress_OpenGL(const char* procname);
+
+/**!
+ * @brief Checks whether a specific OpenGL or OpenGL ES API extension is supported.
+ * @param extension The name of the extension to check.
+ * @param len The length of the extension string.
+ * @return RGFW_TRUE if supported, RGFW_FALSE otherwise.
+*/
+RGFWDEF RGFW_bool RGFW_extensionSupported_OpenGL(const char* extension, size_t len);
+
+/**!
+ * @brief Checks whether a specific platform-dependent OpenGL extension is supported.
+ * @param extension The name of the extension to check.
+ * @param len The length of the extension string.
+ * @return RGFW_TRUE if supported, RGFW_FALSE otherwise.
+*/
+RGFWDEF RGFW_bool RGFW_extensionSupportedPlatform_OpenGL(const char* extension, size_t len);
 
 /* these are EGL specific functions, they may fallback to OpenGL */
 #ifdef RGFW_EGL
-/*!< creates and allocates an OpenGL/EGL context for the RGFW window */
+/**!
+ * @brief Creates and allocates an OpenGL/EGL context for the specified window.
+ * @param win A pointer to the target RGFW_window.
+ * @param hints A pointer to an RGFW_glHints structure defining context creation parameters.
+ * @return A pointer to the newly created RGFW_eglContext.
+*/
 RGFWDEF RGFW_eglContext* RGFW_window_createContext_EGL(RGFW_window* win, RGFW_glHints* hints);
-/*!< creates an OpenGL/EGL context for the RGFW window using the user supplied context struct */
+
+/**!
+ * @brief Creates an OpenGL/EGL context for the specified window using a preallocated context structure.
+ * @param win A pointer to the target RGFW_window.
+ * @param ctx A pointer to an already allocated RGFW_eglContext structure.
+ * @param hints A pointer to an RGFW_glHints structure defining context creation parameters.
+ * @return RGFW_TRUE on success, RGFW_FALSE on failure.
+*/
 RGFWDEF RGFW_bool RGFW_window_createContextPtr_EGL(RGFW_window* win, RGFW_eglContext* ctx, RGFW_glHints* hints);
-/*!< frees and deletes an OpenGL/EGL context | called by `RGFW_window_close` if RGFW owns the context */
+
+/**!
+ * @brief Frees and deletes an OpenGL/EGL context.
+ * @param win A pointer to the RGFW_window.
+ * @param ctx A pointer to the RGFW_eglContext to delete.
+ *
+ * @note Automatically called by RGFW_window_close if RGFW owns the context.
+*/
 RGFWDEF void RGFW_window_deleteContext_EGL(RGFW_window* win, RGFW_eglContext* ctx);
-/*!< deletes an OpenGL/EGL context | called by `RGFW_window_close` if RGFW owns the context */
+
+/**!
+ * @brief Deletes an OpenGL/EGL context without freeing its memory.
+ * @param win A pointer to the RGFW_window.
+ * @param ctx A pointer to the RGFW_eglContext to delete.
+ *
+ * @note Automatically called by RGFW_window_close if RGFW owns the context.
+*/
 RGFWDEF void RGFW_window_deleteContextPtr_EGL(RGFW_window* win, RGFW_eglContext* ctx);
-/*!, get the context that is tied to the window, returns NULL if there is no context OR if the context is a native OpenGL context */
+
+/**!
+ * @brief Retrieves the OpenGL/EGL context associated with a window.
+ * @param win A pointer to the RGFW_window.
+ * @return A pointer to the associated RGFW_eglContext, or NULL if none exists or if the context is a native OpenGL context.
+*/
 RGFWDEF RGFW_eglContext* RGFW_window_getContext_EGL(RGFW_window* win);
 
+/**!
+ * @brief Retrieves the EGL display handle.
+ * @return A pointer to the native EGLDisplay.
+*/
 RGFWDEF void* RGFW_getDisplay_EGL(void);
+
+/**!
+ * @brief Retrieves the native source context from an RGFW_eglContext.
+ * @param ctx A pointer to the RGFW_eglContext.
+ * @return A pointer to the native EGLContext handle.
+*/
 RGFWDEF void* RGFW_eglContext_getSourceContext(RGFW_eglContext* ctx);
+
+/**!
+ * @brief Retrieves the EGL surface handle from an RGFW_eglContext.
+ * @param ctx A pointer to the RGFW_eglContext.
+ * @return A pointer to the EGLSurface associated with the context.
+*/
 RGFWDEF void* RGFW_eglContext_getSurface(RGFW_eglContext* ctx);
+
+/**!
+ * @brief Retrieves the Wayland EGL window handle from an RGFW_eglContext.
+ * @param ctx A pointer to the RGFW_eglContext.
+ * @return A pointer to the wl_egl_window associated with the EGL context.
+*/
 RGFWDEF struct wl_egl_window* RGFW_eglContext_wlEGLWindow(RGFW_eglContext* ctx);
 
-RGFWDEF void RGFW_window_swapBuffers_EGL(RGFW_window* win); /*!< swap OpenGL buffer (only) called by RGFW_window_swapInterval  */
+/**!
+ * @brief Swaps the EGL buffers for the specified window.
+ * @param win A pointer to the RGFW_window whose buffers should be swapped.
+ *
+ * @note Typically called by RGFW_window_swapInterval.
+*/
+RGFWDEF void RGFW_window_swapBuffers_EGL(RGFW_window* win);
 
-RGFWDEF void RGFW_window_makeCurrentWindow_EGL(RGFW_window* win); /*!< to be called by RGFW_window_makeCurrent */
-RGFWDEF void RGFW_window_makeCurrentContext_EGL(RGFW_window* win); /*!< to be called by RGFW_window_makeCurrent */
+/**!
+ * @brief Makes the specified window the current EGL rendering target.
+ * @param win A pointer to the RGFW_window to make current.
+ *
+ * @note This is typically called internally by RGFW_window_makeCurrent.
+*/
+RGFWDEF void RGFW_window_makeCurrentWindow_EGL(RGFW_window* win);
 
-RGFWDEF void* RGFW_getCurrentContext_EGL(void); /*!< get the current context (EGL)*/
-RGFWDEF RGFW_window* RGFW_getCurrentWindow_EGL(void); /*!< get the current window (set by RGFW_window_makeCurrentWindow) (EGL)*/
+/**!
+ * @brief Makes the EGL context of the specified window current.
+ * @param win A pointer to the RGFW_window whose context should be made current.
+ *
+ * @note To move a context between threads, call RGFW_window_makeCurrentContext_EGL(NULL)
+ *       on the old thread before making it current on the new one.
+*/
+RGFWDEF void RGFW_window_makeCurrentContext_EGL(RGFW_window* win);
 
-/*! set swapInterval / enable vsync */
+/**!
+ * @brief Retrieves the current EGL context.
+ * @return A pointer to the currently active EGLContext.
+*/
+RGFWDEF void* RGFW_getCurrentContext_EGL(void);
+
+/**!
+ * @brief Retrieves the current EGL window.
+ * @return A pointer to the RGFW_window currently bound as the EGL context target.
+*/
+RGFWDEF RGFW_window* RGFW_getCurrentWindow_EGL(void);
+
+/**!
+ * @brief Sets the EGL swap interval (vsync).
+ * @param win A pointer to the RGFW_window.
+ * @param swapInterval The desired swap interval value (0 to disable vsync, 1 to enable).
+*/
 RGFWDEF void RGFW_window_swapInterval_EGL(RGFW_window* win, i32 swapInterval);
 
-RGFWDEF RGFW_proc RGFW_getProcAddress_EGL(const char* procname); /*!< get native OpenGL proc address */
-RGFWDEF RGFW_bool RGFW_extensionSupported_EGL(const char* extension, size_t len);	/*!< check if whether the specified API extension is supported by the current OpenGL or OpenGL ES context */
-RGFWDEF RGFW_bool RGFW_extensionSupportedPlatform_EGL(const char* extension, size_t len);	/*!< check if whether the specified platform-specific API extension is supported by the current OpenGL or OpenGL ES context */
+/**!
+ * @brief Retrieves the address of a native OpenGL or OpenGL ES procedure in an EGL context.
+ * @param procname The name of the OpenGL function to look up.
+ * @return A pointer to the function, or NULL if not found.
+*/
+RGFWDEF RGFW_proc RGFW_getProcAddress_EGL(const char* procname);
+
+/**!
+ * @brief Checks whether a specific OpenGL or OpenGL ES API extension is supported in the current EGL context.
+ * @param extension The name of the extension to check.
+ * @param len The length of the extension string.
+ * @return RGFW_TRUE if supported, RGFW_FALSE otherwise.
+*/
+RGFWDEF RGFW_bool RGFW_extensionSupported_EGL(const char* extension, size_t len);
+
+/**!
+ * @brief Checks whether a specific platform-dependent EGL extension is supported in the current context.
+ * @param extension The name of the extension to check.
+ * @param len The length of the extension string.
+ * @return RGFW_TRUE if supported, RGFW_FALSE otherwise.
+*/
+RGFWDEF RGFW_bool RGFW_extensionSupportedPlatform_EGL(const char* extension, size_t len);
 #endif
 #endif
 
 #ifdef RGFW_VULKAN
-
-#if defined(RGFW_WAYLAND) && defined(RGFW_X11)
-	#define VK_USE_PLATFORM_WAYLAND_KHR
-	#define VK_USE_PLATFORM_XLIB_KHR
-	#define RGFW_VK_SURFACE ((RGFW_usingWayland()) ? ("VK_KHR_wayland_surface") : ("VK_KHR_xlib_surface"))
-#elif defined(RGFW_WAYLAND)
-	#define VK_USE_PLATFORM_WAYLAND_KHR
-	#define VK_USE_PLATFORM_XLIB_KHR
-	#define RGFW_VK_SURFACE "VK_KHR_wayland_surface"
-#elif defined(RGFW_X11)
-	#define VK_USE_PLATFORM_XLIB_KHR
-	#define RGFW_VK_SURFACE "VK_KHR_xlib_surface"
-#elif defined(RGFW_WINDOWS)
-	#define VK_USE_PLATFORM_WIN32_KHR
-	#define OEMRESOURCE
-	#define RGFW_VK_SURFACE "VK_KHR_win32_surface"
-#elif defined(RGFW_MACOS) && !defined(RGFW_MACOS_X11)
-	#define VK_USE_PLATFORM_MACOS_MVK
-	#define RGFW_VK_SURFACE "VK_MVK_macos_surface"
-#else
-	#define RGFW_VK_SURFACE NULL
-#endif
 #include <vulkan/vulkan.h>
 
 /* if you don't want to use the above macros */
-RGFWDEF const char** RGFW_getRequiredInstanceExtensions_Vulkan(size_t* count); /*!< gets (static) extension array (and size (which will be 2)) */
+
+/**!
+ * @brief Retrieves the Vulkan instance extensions required by RGFW.
+ * @param count [OUTPUT] A pointer that will receive the number of required extensions (typically 2).
+ * @return A pointer to a static array of required Vulkan instance extension names.
+*/
+RGFWDEF const char** RGFW_getRequiredInstanceExtensions_Vulkan(size_t* count);
+
+/**!
+ * @brief Creates a Vulkan surface for the specified window.
+ * @param win A pointer to the RGFW_window for which to create the Vulkan surface.
+ * @param instance The Vulkan instance used to create the surface.
+ * @param surface [OUTPUT] A pointer to a VkSurfaceKHR handle that will receive the created surface.
+ * @return A VkResult indicating success or failure.
+*/
 RGFWDEF VkResult RGFW_window_createSurface_Vulkan(RGFW_window* win, VkInstance instance, VkSurfaceKHR* surface);
+
+/**!
+ * @brief Checks whether the specified Vulkan physical device and queue family support presentation for RGFW.
+ * @param instance The Vulkan instance.
+ * @param physicalDevice The Vulkan physical device to check.
+ * @param queueFamilyIndex The index of the queue family to query for presentation support.
+ * @return RGFW_TRUE if presentation is supported, RGFW_FALSE otherwise.
+*/
 RGFWDEF RGFW_bool RGFW_getPresentationSupport_Vulkan(VkInstance instance, VkPhysicalDevice physicalDevice, u32 queueFamilyIndex);
 #endif
 
@@ -1416,13 +2434,27 @@ RGFWDEF RGFW_bool RGFW_getPresentationSupport_Vulkan(VkInstance instance, VkPhys
 	#ifndef __cplusplus
 		#define __uuidof(T) IID_##T
 	#endif
+/**!
+ * @brief Creates a DirectX swap chain for the specified RGFW window.
+ * @param win A pointer to the RGFW_window for which to create the swap chain.
+ * @param pFactory A pointer to the IDXGIFactory used to create the swap chain.
+ * @param pDevice A pointer to the DirectX device (e.g., ID3D11Device or ID3D12Device).
+ * @param swapchain [OUTPUT] A pointer to an IDXGISwapChain pointer that will receive the created swap chain.
+ * @return An integer result code (0 on success, or a DirectX error code on failure).
+*/
 RGFWDEF int RGFW_window_createSwapChain_DirectX(RGFW_window* win, IDXGIFactory* pFactory, IUnknown* pDevice, IDXGISwapChain** swapchain);
 #endif
 #endif
 
 #ifdef RGFW_WEBGPU
-#include <webgpu/webgpu.h>
-RGFWDEF WGPUSurface RGFW_window_createSurface_WebGPU(RGFW_window* window, WGPUInstance instance);
+	#include <webgpu/webgpu.h>
+	/**!
+	 * @brief Creates a WebGPU surface for the specified RGFW window.
+	 * @param window A pointer to the RGFW_window for which to create the surface.
+	 * @param instance The WebGPU instance used to create the surface.
+	 * @return The created WGPUSurface handle.
+	*/
+	RGFWDEF WGPUSurface RGFW_window_createSurface_WebGPU(RGFW_window* window, WGPUInstance instance);
 #endif
 
 /** @} */
@@ -1430,42 +2462,99 @@ RGFWDEF WGPUSurface RGFW_window_createSurface_WebGPU(RGFW_window* window, WGPUIn
 /** * @defgroup Supporting
 * @{ */
 
-#ifndef RGFW_MAX_EVENTS
-#define RGFW_MAX_EVENTS 32
-#endif
-
-/*!< change which window is the root window */
+/**!
+ * @brief Sets the root (main) RGFW window.
+ * @param win A pointer to the RGFW_window to set as the root window.
+*/
 RGFWDEF void RGFW_setRootWindow(RGFW_window* win);
+
+/**!
+ * @brief Retrieves the current root RGFW window.
+ * @return A pointer to the current root RGFW_window.
+*/
 RGFWDEF RGFW_window* RGFW_getRootWindow(void);
 
-/*! standard event queue, used for injecting events and returning source API callback events like any other queue check */
-/* these are all used internally by RGFW */
+/**!
+ * @brief Pushes an event into the standard RGFW event queue.
+ * @param event A pointer to the RGFW_event to be added to the queue.
+*/
 RGFWDEF void RGFW_eventQueuePush(const RGFW_event* event);
-/* clear out event queue, does not process any events */
+
+/**!
+ * @brief Clears all events from the RGFW event queue without processing them.
+*/
 RGFWDEF void RGFW_eventQueueFlush(void);
+
+/**!
+ * @brief Pops the next event from the RGFW event queue for the specified window.
+ * @param win A pointer to the RGFW_window to retrieve an event for.
+ * @return A pointer to the popped RGFW_event, or NULL if the queue is empty.
+*/
 RGFWDEF RGFW_event* RGFW_eventQueuePop(RGFW_window* win);
 
-/* for C++ / C89 */
-#define RGFW_eventQueuePushEx(eventInit) { RGFW_event e; eventInit; RGFW_eventQueuePush(&e); }
-
-/*! converts api keycode to the RGFW unmapped/physical key */
+/**!
+ * @brief Converts an API keycode to the RGFW unmapped (physical) key.
+ * @param keycode The platform-specific keycode.
+ * @return The corresponding RGFW keycode.
+*/
 RGFWDEF u32 RGFW_apiKeyToRGFW(u32 keycode);
-/*! converts RGFW keycode to the unmapped/physical api key */
+
+/**!
+ * @brief Converts an RGFW keycode to the unmapped (physical) API key.
+ * @param keycode The RGFW keycode.
+ * @return The corresponding platform-specific keycode.
+*/
 RGFWDEF u32 RGFW_rgfwToApiKey(u32 keycode);
-/*! converts RGFW keycode to the mapped keychar */
+
+/**!
+ * @brief Converts an RGFW keycode to the mapped character representation.
+ * @param keycode The RGFW keycode.
+ * @return The corresponding key character.
+*/
 RGFWDEF u8 RGFW_rgfwToKeyChar(u32 keycode);
 
-/*! optional init/deinit function */
-typedef struct RGFW_info RGFW_info;
+/**!
+ * @brief Retrieves the size of the RGFW_info structure.
+ * @return The size (in bytes) of RGFW_info.
+*/
 RGFWDEF size_t RGFW_sizeofInfo(void);
 
-RGFWDEF i32 RGFW_init(void); /*!< is called by default when the first window is created by default */
-RGFWDEF void RGFW_deinit(void); /*!< is called by default when the last open window is closed */
+/**!
+ * @brief Initializes the RGFW library.
+ * @return 0 on success, or a negative error code on failure.
+ * @note This is automatically called when the first window is created.
+*/
+RGFWDEF i32 RGFW_init(void);
 
-RGFWDEF i32 RGFW_init_ptr(RGFW_info* info); /*!< init RGFW, storing the data at the pointer */
-RGFWDEF void RGFW_deinit_ptr(RGFW_info* info); /*!< deinits RGFW instance at pointer */
+/**!
+ * @brief Deinitializes the RGFW library.
+ * @note This is automatically called when the last open window is closed.
+*/
+RGFWDEF void RGFW_deinit(void);
 
+/**!
+ * @brief Initializes RGFW using a user-provided RGFW_info structure.
+ * @param info A pointer to an RGFW_info structure to be used for initialization.
+ * @return 0 on success, or a negative error code on failure.
+*/
+RGFWDEF i32 RGFW_init_ptr(RGFW_info* info);
+
+/**!
+ * @brief Deinitializes a specific RGFW instance stored in the provided RGFW_info pointer.
+ * @param info A pointer to the RGFW_info structure representing the instance to deinitialize.
+*/
+RGFWDEF void RGFW_deinit_ptr(RGFW_info* info);
+
+/**!
+ * @brief Sets the global RGFW_info structure pointer.
+ * @param info A pointer to the RGFW_info structure to set.
+*/
 RGFWDEF void RGFW_setInfo(RGFW_info* info);
+
+/**!
+ * @brief Retrieves the global RGFW_info structure pointer.
+ * @return A pointer to the current RGFW_info structure.
+*/
 RGFWDEF RGFW_info* RGFW_getInfo(void);
 
 /** @} */
@@ -1556,6 +2645,7 @@ RGFWDEF RGFW_info* RGFW_getInfo(void);
 		struct RGFW_glContext {
 			#ifdef RGFW_X11
 				struct __GLXcontextRec* ctx; /*!< source graphics context */
+				Window window;
 			#endif
 			#ifdef RGFW_WAYLAND
 				RGFW_eglContext egl;
@@ -1824,6 +2914,10 @@ struct RGFW_info {
 #ifdef RGFW_IMPLEMENTATION
 
 /* global private API */
+
+/* for C++ / C89 */
+#define RGFW_eventQueuePushEx(eventInit) { RGFW_event e; eventInit; RGFW_eventQueuePush(&e); }
+
 RGFWDEF RGFW_window* RGFW_createWindowPlatform(const char* name, RGFW_windowFlags flags, RGFW_window* win);
 RGFWDEF void RGFW_window_closePlatform(RGFW_window* win);
 
@@ -2074,12 +3168,6 @@ void RGFW_window_checkMode(RGFW_window* win) {
 /*
 no more event call back defines
 */
-
-#define SET_ATTRIB(a, v) { \
-    RGFW_ASSERT(((size_t) index + 1) < sizeof(attribs) / sizeof(attribs[0])); \
-    attribs[index++] = a; \
-    attribs[index++] = v; \
-}
 
 size_t RGFW_sizeofInfo(void) { return sizeof(RGFW_info); }
 size_t RGFW_sizeofNativeImage(void) { return sizeof(RGFW_nativeImage); }
@@ -2739,10 +3827,10 @@ void RGFW_updateKeyModsEx(RGFW_window* win, RGFW_bool capital, RGFW_bool numlock
 
 void RGFW_updateKeyMods(RGFW_window* win, RGFW_bool capital, RGFW_bool numlock, RGFW_bool scroll) {
 	RGFW_updateKeyModsEx(win, capital, numlock,
-					RGFW_window_isKeyPressed(win, RGFW_controlL) || RGFW_window_isKeyPressed(win, RGFW_controlR),
-					RGFW_window_isKeyPressed(win, RGFW_altL) || RGFW_window_isKeyPressed(win, RGFW_altR),
-					RGFW_window_isKeyPressed(win, RGFW_shiftL) || RGFW_window_isKeyPressed(win, RGFW_shiftR),
-					RGFW_window_isKeyPressed(win, RGFW_superL) || RGFW_window_isKeyPressed(win, RGFW_superR),
+					RGFW_window_isKeyDown(win, RGFW_controlL) || RGFW_window_isKeyDown(win, RGFW_controlR),
+					RGFW_window_isKeyDown(win, RGFW_altL) || RGFW_window_isKeyDown(win, RGFW_altR),
+					RGFW_window_isKeyDown(win, RGFW_shiftL) || RGFW_window_isKeyDown(win, RGFW_shiftR),
+					RGFW_window_isKeyDown(win, RGFW_superL) || RGFW_window_isKeyDown(win, RGFW_superR),
 					scroll);
 }
 
@@ -2874,13 +3962,17 @@ RGFW_glHints* RGFW_getGlobalHints_OpenGL(void) { RGFW_init(); return RGFW_global
 
 
 void* RGFW_glContext_getSourceContext(RGFW_glContext* ctx) {
+	RGFW_UNUSED(ctx);
+
 #ifdef RGFW_WAYLAND
 	if (RGFW_usingWayland()) return (void*)ctx->egl.ctx;
 #endif
-#if !defined(RGFW_WAYLAND) || defined(RGFW_X11)
+
+#if defined(RGFW_X11)
 	return (void*)ctx->ctx;
-#endif
+#else
 	return NULL;
+#endif
 }
 
 RGFW_glContext* RGFW_window_createContext_OpenGL(RGFW_window* win, RGFW_glHints* hints) {
@@ -2976,7 +4068,10 @@ RGFW_bool RGFW_extensionSupported_OpenGL(const char* extension, size_t len) {
 }
 
 void RGFW_window_makeCurrentWindow_OpenGL(RGFW_window* win) {
-    _RGFW->current = win;
+	if (win) {
+		_RGFW->current = win;
+	}
+
     RGFW_window_makeCurrentContext_OpenGL(win);
 }
 
@@ -3912,8 +5007,9 @@ i32 RGFW_initPlatform(void) {
 #ifdef RGFW_X11
 	RGFW_load_X11();
 	return RGFW_initPlatform_X11();
-#endif
+#else
 	return 0;
+#endif
 }
 
 
@@ -4228,9 +5324,10 @@ int RGFW_XErrorHandler(Display* display, XErrorEvent* ev) {
 }
 
 void RGFW_XCreateWindow (XVisualInfo visual, const char* name, RGFW_windowFlags flags, RGFW_window* win) {
-	i64 event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask | FocusChangeMask | LeaveWindowMask | EnterWindowMask | ExposureMask; /*!< X11 events accepted */
+	i64 event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask | FocusChangeMask |
+						LeaveWindowMask | EnterWindowMask | ExposureMask | VisibilityChangeMask | PropertyChangeMask;
 
-    /* make X window attrubutes */
+	/* make X window attrubutes */
 	XSetWindowAttributes swa;
     RGFW_MEMSET(&swa, 0, sizeof(swa));
 
@@ -4239,11 +5336,12 @@ void RGFW_XCreateWindow (XVisualInfo visual, const char* name, RGFW_windowFlags 
 		DefaultRootWindow(_RGFW->display),
 		visual.visual, AllocNone);
 	swa.event_mask = event_mask;
+    swa.background_pixmap = None;
 
 	/* create the window */
     win->src.window = XCreateWindow(_RGFW->display, DefaultRootWindow(_RGFW->display), win->x, win->y, (u32)win->w, (u32)win->h,
 		0, visual.depth, InputOutput, visual.visual,
-		CWColormap | CWBorderPixel | CWEventMask, &swa);
+		CWBorderPixel | CWColormap | CWEventMask, &swa);
 
 	XFreeColors(_RGFW->display, cmap, NULL, 0, 0);
 
@@ -4308,8 +5406,11 @@ void RGFW_XCreateWindow (XVisualInfo visual, const char* name, RGFW_windowFlags 
 	win->src.w = win->w;
 	win->src.h = win->h;
 
-	XSetWindowBackground(_RGFW->display, win->src.window, 0);
+	XSetWindowBackground(_RGFW->display, win->src.window, None);
     XClearWindow(_RGFW->display, win->src.window);
+
+	/* stupid hack to make resizing the window less bad */
+	XSetWindowBackgroundPixmap(_RGFW->display, win->src.window, None);
 }
 
 RGFW_window* RGFW_FUNC(RGFW_createWindowPlatform) (const char* name, RGFW_windowFlags flags, RGFW_window* win) {
@@ -4432,6 +5533,8 @@ void RGFW_XHandleEvent(void) {
 	RGFW_LOAD_ATOM(XdndActionCopy);
     RGFW_LOAD_ATOM(_NET_WM_SYNC_REQUEST);
     RGFW_LOAD_ATOM(WM_PROTOCOLS);
+	RGFW_LOAD_ATOM(WM_STATE);
+	RGFW_LOAD_ATOM(_NET_WM_STATE);
 
 	/* xdnd data */
 	static Window source = 0;
@@ -4631,6 +5734,28 @@ void RGFW_XHandleEvent(void) {
 #endif
 			break;
 		}
+
+		case PropertyNotify:
+			if (E.xproperty.state != PropertyNewValue) break;
+
+			if (E.xproperty.atom == WM_STATE) {
+                if (RGFW_window_isMinimized(win) && !(win->internal.flags & RGFW_windowMinimized)) {
+					win->internal.flags |= RGFW_windowMinimize;
+					RGFW_eventQueuePushEx(e.type = RGFW_windowMinimized; e.common.win = win);
+					RGFW_windowMinimizedCallback(win);
+					break;
+				}
+			} else if (E.xproperty.atom == _NET_WM_STATE) {
+				if (!(win->internal.flags & RGFW_windowMaximize)) {
+					win->internal.flags |= RGFW_windowMaximize;
+					RGFW_eventQueuePushEx(e.type = RGFW_windowMaximized; e.common.win = win);
+					RGFW_windowMaximizedCallback(win, win->x, win->y, win->w, win->h);
+					break;
+				}
+			}
+
+			RGFW_window_checkMode(win);
+			break;
 		case MapNotify: case UnmapNotify: 		RGFW_window_checkMode(win); break;
 		case ClientMessage: {
 			RGFW_LOAD_ATOM(WM_DELETE_WINDOW);
@@ -4881,7 +6006,6 @@ void RGFW_XHandleEvent(void) {
 			RGFW_focusCallback(win, 0);
 			RGFW_window_focusLost(win);
 			break;
-		case PropertyNotify: RGFW_window_checkMode(win); break;
 		case EnterNotify: {
 			win->internal.mouseInside = RGFW_TRUE;
 			_RGFW->windowState.win = win;
@@ -5282,7 +6406,7 @@ RGFW_mouse* RGFW_FUNC(RGFW_loadMouse) (u8* data, i32 w, i32 h, RGFW_format forma
 
 	return (void*)cursor;
 #else
-	RGFW_UNUSED(img);
+	RGFW_UNUSED(data); RGFW_UNUSED(w); RGFW_UNUSED(h); RGFW_UNUSED(format);
 	return NULL;
 #endif
 }
@@ -5862,18 +6986,20 @@ RGFW_bool RGFW_FUNC(RGFW_window_createContextPtr_OpenGL) (RGFW_window* win, RGFW
 	i32 flags = 0;
 	if (hints->debug) flags |= GLX_CONTEXT_FLAGS_ARB;
 	if (hints->robustness && RGFW_extensionSupportedPlatform_OpenGL(robustStr, sizeof(robustStr))) flags |= GLX_CONTEXT_ROBUST_ACCESS_BIT_ARB;
-	if (flags)
+	if (flags) {
 		RGFW_attribStack_pushAttribs(&stack, GLX_CONTEXT_FLAGS_ARB, flags);
+	}
 
-	if (RGFW_extensionSupportedPlatform_OpenGL(noErorrStr, sizeof(noErorrStr)))
+	if (RGFW_extensionSupportedPlatform_OpenGL(noErorrStr, sizeof(noErorrStr))) {
 		RGFW_attribStack_pushAttribs(&stack, GLX_CONTEXT_OPENGL_NO_ERROR_ARB, hints->noError);
+	}
 
 	RGFW_attribStack_pushAttribs(&stack, 0, 0);
 
 	/*  create the context */
 	glXCreateContextAttribsARBProc glXCreateContextAttribsARB = 0;
-	glXCreateContextAttribsARB = (glXCreateContextAttribsARBProc)
-		glXGetProcAddressARB((u8*) "glXCreateContextAttribsARB");
+	char str[] = "glXCreateContextAttribsARB";
+	glXCreateContextAttribsARB = (glXCreateContextAttribsARBProc)glXGetProcAddressARB((u8*) str);
 
 	GLXContext ctx = NULL;
 	if (hints->share) {
@@ -5884,21 +7010,24 @@ RGFW_bool RGFW_FUNC(RGFW_window_createContextPtr_OpenGL) (RGFW_window* win, RGFW
 		RGFW_sendDebugInfo(RGFW_typeError, RGFW_errOpenGLContext, "Failed to load proc address 'glXCreateContextAttribsARB', loading a generic OpenGL context.");
 			win->src.ctx.native->ctx = glXCreateContext(_RGFW->display, &visual, ctx, True);
 	} else {
-                _RGFW->x11Error = NULL;
-                win->src.ctx.native->ctx = glXCreateContextAttribsARB(_RGFW->display, bestFbc, ctx, True, context_attribs);
-				if (_RGFW->x11Error || win->src.ctx.native->ctx == NULL) {
-					RGFW_sendDebugInfo(RGFW_typeError, RGFW_errOpenGLContext, "Failed to create an OpenGL context with AttribsARB, loading a generic OpenGL context.");
-					win->src.ctx.native->ctx = glXCreateContext(_RGFW->display, &visual, ctx, True);
-            }
+		_RGFW->x11Error = NULL;
+		win->src.ctx.native->ctx = glXCreateContextAttribsARB(_RGFW->display, bestFbc, ctx, True, context_attribs);
+		if (_RGFW->x11Error || win->src.ctx.native->ctx == NULL) {
+			RGFW_sendDebugInfo(RGFW_typeError, RGFW_errOpenGLContext, "Failed to create an OpenGL context with AttribsARB, loading a generic OpenGL context.");
+			win->src.ctx.native->ctx = glXCreateContext(_RGFW->display, &visual, ctx, True);
+		}
 	}
 
-	glXMakeCurrent(_RGFW->display, (Drawable)win->src.window, (GLXContext)win->src.ctx.native->ctx);
+	win->src.ctx.native->window = glXCreateWindow(_RGFW->display, bestFbc, win->src.window, NULL);
+
+	glXMakeCurrent(_RGFW->display, (Drawable)win->src.ctx.native->window, (GLXContext)win->src.ctx.native->ctx);
 	RGFW_sendDebugInfo(RGFW_typeInfo, RGFW_infoOpenGL, "OpenGL context initalized.");
 
 	return RGFW_TRUE;
 }
 
 void RGFW_FUNC(RGFW_window_deleteContextPtr_OpenGL) (RGFW_window* win, RGFW_glContext* ctx) {
+	glXDestroyWindow(_RGFW->display, win->src.ctx.native->window);
 	glXDestroyContext(_RGFW->display, ctx->ctx);
 	win->src.ctx.native = NULL;
 	RGFW_sendDebugInfo(RGFW_typeInfo, RGFW_infoOpenGL,  "OpenGL context freed.");
@@ -5916,21 +7045,23 @@ void RGFW_FUNC(RGFW_window_makeCurrentContext_OpenGL) (RGFW_window* win) { if (w
 	if (win == NULL)
 		glXMakeCurrent(NULL, (Drawable)NULL, (GLXContext) NULL);
 	else
-		glXMakeCurrent(_RGFW->display, (Drawable) win->src.window, (GLXContext) win->src.ctx.native->ctx);
+		glXMakeCurrent(_RGFW->display, (Drawable)win->src.ctx.native->window, (GLXContext) win->src.ctx.native->ctx);
 	return;
 }
 void* RGFW_FUNC(RGFW_getCurrentContext_OpenGL) (void) { return glXGetCurrentContext(); }
-void RGFW_FUNC(RGFW_window_swapBuffers_OpenGL) (RGFW_window* win) { RGFW_ASSERT(win->src.ctx.native); glXSwapBuffers(_RGFW->display, win->src.window); }
+void RGFW_FUNC(RGFW_window_swapBuffers_OpenGL) (RGFW_window* win) { RGFW_ASSERT(win->src.ctx.native); glXSwapBuffers(_RGFW->display, win->src.ctx.native->window); }
 
 void RGFW_FUNC(RGFW_window_swapInterval_OpenGL) (RGFW_window* win, i32 swapInterval) {
 	RGFW_ASSERT(win != NULL);
 	/* cached pfn to avoid calling glXGetProcAddress more than once */
-	static PFNGLXSWAPINTERVALEXTPROC pfn = (PFNGLXSWAPINTERVALEXTPROC)-1;
+	static PFNGLXSWAPINTERVALEXTPROC pfn = NULL;
 	static int (*pfn2)(int) = NULL;
 
-	if (pfn == (PFNGLXSWAPINTERVALEXTPROC)-1) {
-		pfn = (PFNGLXSWAPINTERVALEXTPROC)glXGetProcAddress((u8*)"glXSwapIntervalEXT");
+	if (pfn == NULL) {
+		u8 str[] = "glXSwapIntervalEXT";
+		pfn = (PFNGLXSWAPINTERVALEXTPROC)glXGetProcAddress(str);
 		if (pfn == NULL)  {
+			pfn = (PFNGLXSWAPINTERVALEXTPROC)1;
 			const char* array[] = {"GLX_MESA_swap_control", "GLX_SGI_swap_control"};
 
 			size_t i;
@@ -5946,7 +7077,7 @@ void RGFW_FUNC(RGFW_window_swapInterval_OpenGL) (RGFW_window* win, i32 swapInter
 		}
 	}
 
-	if (pfn != NULL) {
+	if (pfn != (PFNGLXSWAPINTERVALEXTPROC)1) {
 		pfn(_RGFW->display, win->src.window, swapInterval);
 	}
 	else if (pfn2 != NULL) {
@@ -6022,7 +7153,8 @@ i32 RGFW_initPlatform_X11(void) {
     XkbGetNames(_RGFW->display, XkbKeyNamesMask, desc);
 
     RGFW_MEMSET(&rec, 0, sizeof(rec));
-    rec.keycodes = (char*)"evdev";
+    char evdev[] = "evdev";
+    rec.keycodes = evdev;
     evdesc = XkbGetKeyboardByName(_RGFW->display, XkbUseCoreKbd, &rec, XkbGBN_KeyNamesMask, XkbGBN_KeyNamesMask, False);
     /* memo: RGFW_keycodes[x11 keycode] = rgfw keycode */
     if(evdesc != NULL && desc != NULL) {
@@ -6059,7 +7191,10 @@ void RGFW_deinitPlatform_X11(void) {
 		_RGFW->clipboard = NULL;
 	}
 
-    RGFW_freeMouse(_RGFW->hiddenMouse);
+	if (_RGFW->hiddenMouse) {
+		RGFW_freeMouse(_RGFW->hiddenMouse);
+		_RGFW->hiddenMouse = NULL;
+	}
 
     XDestroyWindow(_RGFW->display, (Drawable) _RGFW->helperWindow); /*!< close the window */
     XCloseDisplay(_RGFW->display); /*!< kill connection to the x server */
@@ -6095,8 +7230,8 @@ WGPUSurface RGFW_FUNC(RGFW_window_createSurface_WebGPU) (RGFW_window* window, WG
 	WGPUSurfaceDescriptor surfaceDesc = {0};
 	WGPUSurfaceSourceXlibWindow fromXlib = {0};
 	fromXlib.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
-	fromXlib.display = window->src.display; // Get Display* from RGFW
-	fromXlib.window = window->src.window;   // Get Window from RGFW
+	fromXlib.display = _RGFW->display;
+	fromXlib.window = window->src.window;
 
 	surfaceDesc.nextInChain = (WGPUChainedStruct*)&fromXlib.chain;
 	return wgpuInstanceCreateSurface(instance, &surfaceDesc);
@@ -6646,7 +7781,7 @@ static void RGFW_xdg_output_logical_size(void *data, struct zxdg_output_v1 *zxdg
 }
 
 static void RGFW_wl_create_outputs(struct wl_registry *const registry, uint32_t id) {
-	struct wl_output *output = wl_registry_bind(registry, id, &wl_output_interface, 4);
+	struct wl_output *output = wl_registry_bind(registry, id, &wl_output_interface, wl_display_get_version(_RGFW->wl_display) < 4 ? 3 : 4);
 	RGFW_monitorNode* node;
 	RGFW_monitor mon;
 
@@ -7500,7 +8635,7 @@ WGPUSurface RGFW_FUNC(RGFW_window_createSurface_WebGPU) (RGFW_window* window, WG
 	WGPUSurfaceDescriptor surfaceDesc = {0};
 	WGPUSurfaceSourceWaylandSurface fromWl = {0};
 	fromWl.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
-	fromWl.display = window->src.wl_display;
+	fromWl.display = _RGFW->wl_display;
 	fromWl.surface = window->src.surface;
 
 	surfaceDesc.nextInChain = (WGPUChainedStruct*)&fromWl.chain;
@@ -7526,6 +8661,22 @@ WGPUSurface RGFW_FUNC(RGFW_window_createSurface_WebGPU) (RGFW_window* window, WG
 #define WIN32_LEAN_AND_MEAN
 #define OEMRESOURCE
 #include <windows.h>
+
+#ifndef OCR_NORMAL
+#define OCR_NORMAL 32512
+#define OCR_IBEAM 32513
+#define OCR_WAIT 32514
+#define OCR_CROSS 32515
+#define OCR_UP 32516
+#define OCR_SIZENWSE 32642
+#define OCR_SIZENESW 32643
+#define OCR_SIZEWE 32644
+#define OCR_SIZENS 32645
+#define OCR_SIZEALL 32646
+#define OCR_NO 32648
+#define OCR_HAND 32649
+#define OCR_APPSTARTING 32650
+#endif
 
 #include <windowsx.h>
 #include <shellapi.h>
@@ -7793,12 +8944,13 @@ LRESULT CALLBACK WndProcW(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			_RGFW->keyboard[event.key.value].prev = _RGFW->keyboard[event.key.value].current;
 			event.type = RGFW_keyReleased;
-			event.key.repeat = RGFW_window_isKeyPressed(win, event.key.value);
+			event.key.repeat = ((lParam & 0x40000000) != 0) || RGFW_window_isKeyDown(win, event.key.value);
 			_RGFW->keyboard[event.key.value].current = 0;
 
 			RGFW_updateKeyMods(win, (GetKeyState(VK_CAPITAL) & 0x0001), (GetKeyState(VK_NUMLOCK) & 0x0001), (GetKeyState(VK_SCROLL) & 0x0001));
+			event.key.mod = win->internal.mod;
 
-			RGFW_keyCallback(win, event.key.value, event.key.sym, event.key.repeat, win->internal.mod, 0);
+			RGFW_keyCallback(win, event.key.value, event.key.sym, event.key.mod, event.key.repeat,0);
 			break;
 		}
 		case WM_SYSKEYDOWN: case WM_KEYDOWN: {
@@ -7827,11 +8979,13 @@ LRESULT CALLBACK WndProcW(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			_RGFW->keyboard[event.key.value].prev = _RGFW->keyboard[event.key.value].current;
 			event.type = RGFW_keyPressed;
-			event.key.repeat = RGFW_window_isKeyPressed(win, event.key.value);
+			event.key.repeat = ((lParam & 0x40000000) != 0) || RGFW_window_isKeyDown(win, event.key.value);
 			_RGFW->keyboard[event.key.value].current = 1;
-			RGFW_updateKeyMods(win, (GetKeyState(VK_CAPITAL) & 0x0001), (GetKeyState(VK_NUMLOCK) & 0x0001), (GetKeyState(VK_SCROLL) & 0x0001));
 
-			RGFW_keyCallback(win, event.key.value, event.key.sym, win->internal.mod, event.key.repeat, 1);
+			RGFW_updateKeyMods(win, (GetKeyState(VK_CAPITAL) & 0x0001), (GetKeyState(VK_NUMLOCK) & 0x0001), (GetKeyState(VK_SCROLL) & 0x0001));
+			event.key.mod = win->internal.mod;
+
+			RGFW_keyCallback(win, event.key.value, event.key.sym, event.key.mod, event.key.repeat, 1);
 			break;
 		}
 		case WM_MOUSEMOVE: {
@@ -8377,7 +9531,6 @@ void RGFW_window_setBorder(RGFW_window* win, RGFW_bool border) {
 	RGFW_setBit(&win->internal.flags, RGFW_windowNoBorder, !border);
 	LONG style = GetWindowLong(win->src.window, GWL_STYLE);
 
-
 	if (border == 0) {
 		SetWindowLong(win->src.window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
 		SetWindowPos(
@@ -8386,8 +9539,8 @@ void RGFW_window_setBorder(RGFW_window* win, RGFW_bool border) {
 		);
 	}
 	else {
-		style |= WS_OVERLAPPEDWINDOW;
 		if (win->internal.flags & RGFW_windowNoResize) style &= ~WS_MAXIMIZEBOX;
+		SetWindowLong(win->src.window, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
 		SetWindowPos(
 			win->src.window, HWND_TOP, 0, 0, 0, 0,
 			SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOMOVE | SWP_NOSIZE
@@ -8463,10 +9616,10 @@ void RGFW_window_setFullscreen(RGFW_window* win, RGFW_bool fullscreen) {
 	RGFW_monitor mon  = RGFW_window_getMonitor(win);
 	RGFW_window_setBorder(win, 0);
 
-    SetWindowPos(win->src.window, HWND_TOPMOST, 0, 0, (i32)mon.mode.w, (i32)mon.mode.h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    SetWindowPos(win->src.window, HWND_TOPMOST, (i32)mon.x, (i32)mon.x, (i32)mon.mode.w, (i32)mon.mode.h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
     RGFW_monitor_scaleToWindow(mon, win);
 
-	win->x = 0; win->y = 0;
+	win->x = mon.x; win->y = mon.x;
 	win->w = mon.mode.w;
 	win->h = mon.mode.h;
 }
@@ -8953,7 +10106,7 @@ RGFW_ssize_t RGFW_readClipboardPtr(char* str, size_t strCapacity) {
 			if (textLen > 1)
 				wcstombs(str, wstr, (size_t)(textLen));
 
-			str[textLen] = '\0';
+			str[textLen - 1] = '\0';
 		}
 	}
 
@@ -9085,9 +10238,14 @@ void RGFW_win32_loadOpenGLFuncs(HWND dummyWin) {
 #define WGL_CONTEXT_MAJOR_VERSION_ARB               0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB               0x2092
 #define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB             0x20A9
+#define WGL_CONTEXT_RELEASE_BEHAVIOR_ARB 0x2097
+#define WGL_CONTEXT_DEBUG_BIT_ARB 0x00000001
+#define WGL_CONTEXT_ROBUST_ACCESS_BIT_ARB 0x00000004
 
 RGFW_bool RGFW_window_createContextPtr_OpenGL(RGFW_window* win, RGFW_glContext* ctx, RGFW_glHints* hints) {
 	const char flushControl[] = "WGL_ARB_context_flush_control";
+	const char noError[] = "WGL_ARB_create_context_no_error";
+	const char robustness[] = "WGL_ARB_create_context_robustness";
 
 	win->src.ctx.native = ctx;
 	win->src.gfxType = RGFW_gfxNativeOpenGL;
@@ -9131,8 +10289,8 @@ RGFW_bool RGFW_window_createContextPtr_OpenGL(RGFW_window* win, RGFW_glContext* 
 		RGFW_attribStack_pushAttribs(&stack, WGL_GREEN_BITS_ARB, hints->blue);
 		RGFW_attribStack_pushAttribs(&stack, WGL_BLUE_BITS_ARB, hints->green);
 		RGFW_attribStack_pushAttribs(&stack, WGL_ACCUM_RED_BITS_ARB, hints->accumRed);
-		RGFW_attribStack_pushAttribs(&stack, WGL_ACCUM_GREEN_BITS_ARB, hints->accumBlue);
-		RGFW_attribStack_pushAttribs(&stack, WGL_ACCUM_BLUE_BITS_ARB, hints->accumGreen);
+		RGFW_attribStack_pushAttribs(&stack, WGL_ACCUM_GREEN_BITS_ARB, hints->accumGreen);
+		RGFW_attribStack_pushAttribs(&stack, WGL_ACCUM_BLUE_BITS_ARB, hints->accumBlue);
 		RGFW_attribStack_pushAttribs(&stack, WGL_ACCUM_ALPHA_BITS_ARB, hints->accumAlpha);
 
 		if(hints->sRGB) {
@@ -9161,8 +10319,10 @@ RGFW_bool RGFW_window_createContextPtr_OpenGL(RGFW_window* win, RGFW_glContext* 
 
 	if (wglCreateContextAttribsARB != NULL) {
 		/* create OpenGL/WGL context for the specified version */
-		u32 index = 0;
 		i32 attribs[40];
+		RGFW_attribStack stack;
+		RGFW_attribStack_init(&stack, attribs, 50);
+
 
 		i32 mask = 0;
 		switch (hints->profile) {
@@ -9172,33 +10332,38 @@ RGFW_bool RGFW_window_createContextPtr_OpenGL(RGFW_window* win, RGFW_glContext* 
 			default: mask |= WGL_CONTEXT_CORE_PROFILE_BIT_ARB; break;
 		}
 
-		SET_ATTRIB(WGL_CONTEXT_PROFILE_MASK_ARB, mask);
+		RGFW_attribStack_pushAttribs(&stack, WGL_CONTEXT_PROFILE_MASK_ARB, mask);
 
 		if (hints->minor || hints->major) {
-			SET_ATTRIB(WGL_CONTEXT_MAJOR_VERSION_ARB, hints->major);
-			SET_ATTRIB(WGL_CONTEXT_MINOR_VERSION_ARB, hints->minor);
+			RGFW_attribStack_pushAttribs(&stack, WGL_CONTEXT_MAJOR_VERSION_ARB, hints->major);
+			RGFW_attribStack_pushAttribs(&stack, WGL_CONTEXT_MINOR_VERSION_ARB, hints->minor);
 		}
 
-		SET_ATTRIB(WGL_CONTEXT_OPENGL_NO_ERROR_ARB, hints->noError);
+		if (RGFW_extensionSupportedPlatform_OpenGL(noError, sizeof(noError)))
+			RGFW_attribStack_pushAttribs(&stack, WGL_CONTEXT_OPENGL_NO_ERROR_ARB, hints->noError);
 
 		if (RGFW_extensionSupportedPlatform_OpenGL(flushControl, sizeof(flushControl))) {
 			if (hints->releaseBehavior == RGFW_glReleaseFlush) {
-				SET_ATTRIB(0x2097, WGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB); // WGL_CONTEXT_RELEASE_BEHAVIOR_ARB
+				RGFW_attribStack_pushAttribs(&stack, WGL_CONTEXT_RELEASE_BEHAVIOR_ARB, WGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB); // WGL_CONTEXT_RELEASE_BEHAVIOR_ARB
 			} else if (hints->releaseBehavior == RGFW_glReleaseNone) {
-				SET_ATTRIB(0x2097, 0x0000); // WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB
+				RGFW_attribStack_pushAttribs(&stack, WGL_CONTEXT_RELEASE_BEHAVIOR_ARB, WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB);
 			}
 		}
 
 		i32 flags = 0;
-		if (hints->debug) flags |= WGL_ACCESS_READ_WRITE_NV; // substitute for debug bit, not exact
-		if (hints->robustness) flags |= WGL_CONTEXT_ES_PROFILE_BIT_EXT; // robustness placeholder
-		SET_ATTRIB(WGL_CONTEXT_FLAGS_ARB, flags);
+		if (hints->debug) flags |= WGL_CONTEXT_DEBUG_BIT_ARB;
+		if (hints->robustness && RGFW_extensionSupportedPlatform_OpenGL(robustness, sizeof(robustness))) flags |= WGL_CONTEXT_ROBUST_ACCESS_BIT_ARB;
+		if (flags) {
+			RGFW_attribStack_pushAttribs(&stack, WGL_CONTEXT_FLAGS_ARB, flags);
+		}
 
 
-		SET_ATTRIB(0, 0);
+		RGFW_attribStack_pushAttribs(&stack, 0, 0);
 
 		win->src.ctx.native->ctx = (HGLRC)wglCreateContextAttribsARB(win->src.hdc, NULL, attribs);
-	} else { /* fall back to a default context (probably OpenGL 2 or something) */
+	}
+
+	if (wglCreateContextAttribsARB == NULL || win->src.ctx.native->ctx == NULL) { /* fall back to a default context (probably OpenGL 2 or something) */
 		RGFW_sendDebugInfo(RGFW_typeError, RGFW_errOpenGLContext, "Failed to create an accelerated OpenGL Context.");
 		win->src.ctx.native->ctx = wglCreateContext(win->src.hdc);
 	}
@@ -9222,7 +10387,6 @@ void RGFW_window_deleteContextPtr_OpenGL(RGFW_window* win, RGFW_glContext* ctx) 
 }
 
 void RGFW_window_makeCurrentContext_OpenGL(RGFW_window* win) {
-	RGFW_ASSERT(win->src.ctx.native);
 	if (win == NULL)
 		wglMakeCurrent(NULL, NULL);
 	else
@@ -10672,18 +11836,22 @@ void RGFW_window_setFullscreen(RGFW_window* win, RGFW_bool fullscreen) {
 	if (!fullscreen && !(win->internal.flags & RGFW_windowFullscreen)) return;
 
 	if (fullscreen) {
+		if (!(win->internal.flags & RGFW_windowFullscreen)) {
+			return;
+		}
+
 		win->internal.oldX = win->x;
 		win->internal.oldY = win->y;
 		win->internal.oldW = win->w;
 		win->internal.oldH = win->h;
 		RGFW_monitor mon = RGFW_window_getMonitor(win);
-		win->x = 0;
-		win->y = 0;
-		win->w = mon.x;
-		win->h = mon.y;
+		win->x = mon.x;
+		win->y = mon.y;
+		win->w = mon.mode.w;
+		win->h = mon.mode.h;
 		win->internal.flags |= RGFW_windowFullscreen;
 		RGFW_window_resize(win, mon.mode.w, mon.mode.h);
-		RGFW_window_move(win, 0, 0);
+		RGFW_window_move(win, mon.x, mon.y);
 	}
 	objc_msgSend_void_SEL(win->src.window, sel_registerName("toggleFullScreen:"), NULL);
 
@@ -11768,7 +12936,7 @@ RGFW_window* RGFW_createWindowPlatform(const char* name, RGFW_windowFlags flags,
 	EM_ASM({
 		window.addEventListener("keydown",
 			(event) => {
-				var key = stringToNewUTF8(event.key.value); var code = stringToNewUTF8(event.code);
+				var key = stringToNewUTF8(event.key); var code = stringToNewUTF8(event.code);
 				Module._RGFW_handleKeyMods(event.getModifierState("CapsLock"), event.getModifierState("NumLock"), event.getModifierState("Control"), event.getModifierState("Alt"), event.getModifierState("Shift"), event.getModifierState("Meta"), event.getModifierState("ScrollLock"));
 				Module._RGFW_handleKeyEvent(key, code, 1);
 				_free(key); _free(code);
@@ -11776,7 +12944,7 @@ RGFW_window* RGFW_createWindowPlatform(const char* name, RGFW_windowFlags flags,
 		true);
 		window.addEventListener("keyup",
 			(event) => {
-				var key = stringToNewUTF8(event.key.value); var code = stringToNewUTF8(event.code);
+				var key = stringToNewUTF8(event.key); var code = stringToNewUTF8(event.code);
 				Module._RGFW_handleKeyMods(event.getModifierState("CapsLock"), event.getModifierState("NumLock"), event.getModifierState("Control"), event.getModifierState("Alt"), event.getModifierState("Shift"), event.getModifierState("Meta"), event.getModifierState("ScrollLock"));
 				Module._RGFW_handleKeyEvent(key, code, 0);
 				_free(key); _free(code);
@@ -11841,7 +13009,10 @@ u8 RGFW_rgfwToKeyChar(u32 rgfw_keycode) {
     return (u8)rgfw_keycode; /* TODO */
 }
 
-void RGFW_pollEvents(void) { RGFW_resetPrevState(); }
+void RGFW_pollEvents(void) {
+    emscripten_sleep(0);
+	RGFW_resetPrevState();
+}
 
 void RGFW_window_resize(RGFW_window* win, i32 w, i32 h) {
 	RGFW_UNUSED(win);
@@ -11924,8 +13095,8 @@ RGFW_bool RGFW_window_createContextPtr_OpenGL(RGFW_window* win, RGFW_glContext* 
 	win->src.gfxType = RGFW_gfxNativeOpenGL;
 
 	EmscriptenWebGLContextAttributes attrs;
-	attrs.alpha = hints->depth;
-	attrs.depth = hints->alpha;
+	attrs.alpha = hints->alpha;
+	attrs.depth = hints->depth;
 	attrs.stencil = hints->stencil;
 	attrs.antialias = hints->samples;
 	attrs.premultipliedAlpha = EM_TRUE;
@@ -11971,7 +13142,6 @@ void RGFW_window_makeCurrentContext_OpenGL(RGFW_window* win) {
 void RGFW_window_swapBuffers_OpenGL(RGFW_window* win) {
 	RGFW_ASSERT(win && win->src.ctx.native);
 	emscripten_webgl_commit_frame();
-    emscripten_sleep(0);
 }
 void* RGFW_getCurrentContext_OpenGL(void) { return (void*)emscripten_webgl_get_current_context(); }
 
@@ -12539,3 +13709,4 @@ void RGFW_load_Wayland(void) {
 #if _MSC_VER
 	#pragma warning( pop )
 #endif
+
