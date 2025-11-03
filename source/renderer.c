@@ -12,6 +12,8 @@
 #define RFONT_IMPLEMENTATION
 #include "RFont.h"
 
+static hl_rendererHandle renderer;
+
 hl_rendererHandle hl_renderer_init(hl_rendererType type, hl_windowHandle window) {
 	RSGL_renderer* renderer = NULL;
 
@@ -73,33 +75,33 @@ void hl_renderer_freeTexture(hl_rendererHandle renderer, hl_textureHandle textur
 	RSGL_renderer_deleteTexture(renderer, (size_t)texture);
 }
 
-void hl_renderer_start(hl_rendererHandle renderer) {
+void hl_renderer_start(hl_rendererHandle handle) {
+	renderer = handle;
 	assert(renderer);
 
-	hl_windowHandle window = (hl_windowHandle)((RSGL_renderer*)renderer)->userPtr;
-	hl_window_makeCurrentContext_OpenGL(window);
+	hl_window_makeCurrentContext_OpenGL(((RSGL_renderer*)handle)->userPtr);
 }
 
-void hl_renderer_finish(hl_rendererHandle renderer) {
+void hl_renderer_finish(void) {
 	hl_windowHandle window = (hl_windowHandle)((RSGL_renderer*)renderer)->userPtr;
 	RSGL_renderer_render((RSGL_renderer*)renderer);
 
 	hl_window_swapBuffers_OpenGL(window);
 }
 
-void hl_renderer_clear(hl_rendererHandle renderer, hl_color color) {
+void hl_clear(hl_color color) {
 	RSGL_renderer_clear(renderer, *(RSGL_color*)&color);
 }
 
-void hl_renderer_setTexture(hl_rendererHandle renderer, hl_textureHandle texture) {
+void hl_setTexture(hl_textureHandle texture) {
 	RSGL_renderer_setTexture(renderer, (RSGL_texture)texture);
 }
 
-void hl_renderer_setColor(hl_rendererHandle renderer, hl_color color) {
+void hl_setColor(hl_color color) {
 	RSGL_renderer_setColor(renderer, *(RSGL_color*)&color);
 }
 
-void hl_renderer_drawRect(hl_rendererHandle renderer, hl_rect rect) {
+void hl_drawRect(hl_rect rect) {
 	RSGL_drawRect(renderer, *(RSGL_rect*)&rect);
 }
 

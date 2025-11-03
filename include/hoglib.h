@@ -868,23 +868,21 @@ HL_API void hl_renderer_free(hl_rendererHandle handle);
 
 /**!
  * @brief setup renderer for the new frame
- * @param handle to the renderer object
+ * @param handle to the renderer in use
 */
-HL_API void hl_renderer_start(hl_rendererHandle renderer);
+HL_API void hl_renderer_start(hl_rendererHandle window);
 
 /**!
  * @brief finish rendering the new frame using the render data
- * @param handle to the renderer object
 */
-HL_API void hl_renderer_finish(hl_rendererHandle renderer);
+HL_API void hl_renderer_finish(void);
 
 
 /**!
  * @brief clear surface to a set background color
- * @param handle to the renderer object
  * @param color object
 */
-HL_API void hl_renderer_clear(hl_rendererHandle renderer, hl_color color);
+HL_API void hl_clear(hl_color color);
 
 /**!
  * @brief create texture from raw image data
@@ -913,21 +911,21 @@ HL_API void hl_renderer_freeTexture(hl_rendererHandle renderer, hl_textureHandle
  * @param handle renderer object
  * @param handle to the texture resource
 */
-HL_API void hl_renderer_setTexture(hl_rendererHandle renderer, hl_textureHandle texture);
+HL_API void hl_setTexture(hl_textureHandle texture);
 
 /**!
  * @brief set draw foreground color
  * @param handle to the renderer object
  * @param color object
 */
-HL_API void hl_renderer_setColor(hl_rendererHandle renderer, hl_color color);
+HL_API void hl_setColor(hl_color color);
 
 /**!
  * @brief draw rectangle to the surface
  * @param handle to the renderer object
  * @param rect object
 */
-HL_API void hl_renderer_drawRect(hl_rendererHandle renderer, hl_rect rect);
+HL_API void hl_drawRect(hl_rect rect);
 
 #ifdef __cplusplus
 }
