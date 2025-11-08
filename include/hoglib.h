@@ -100,37 +100,30 @@ extern "C" {
 /* Enum values for all of Hoglib's subsystems
  * These are used when requesting which subsystems you would like to initalize
 */
-typedef enum hl_subsystems {
-	HL_WINDOWING = HL_BIT(0), /* basic windowing features */
-	HL_GRAPHICS = HL_BIT(1), /* rendering and graphical features */
-
-	/* combos of enums to make it easier to init Hoglib */
-	HL_VIDEO = HL_WINDOWING | HL_GRAPHICS
-} hl_subsystems;
 
 /*! @brief function pointer equivalent of void* */
 typedef void (*hl_proc)(void);
 
 typedef enum hl_textureFormat {
-	hl_formatNone = 0,
-	hl_formatRGB,    /*!< 8-bit RGB (3 channels) */
-    hl_formatBGR,    /*!< 8-bit BGR (3 channels) */
-	hl_formatRGBA,   /*!< 8-bit RGBA (4 channels) */
-    hl_formatBGRA,   /*!< 8-bit BGRA (4 channels) */
-    hl_formatRed,   /*!< 8-bit RED (1 channel) */
-    hl_formatGrayscale,   /*!< 8-bit grayscale (1 channel) */
-    hl_formatGrayscaleAlpha,   /*!< 8-bit grayscale alpha (1 channel) */
-	hl_formatCount
+	HL_FORMAT_NONE = 0,
+	HL_FORMAT_RGB,    /*!< 8-bit RGB (3 channels) */
+    HL_FORMAT_BGR,    /*!< 8-bit BGR (3 channels) */
+	HL_FORMAT_RGBA,   /*!< 8-bit RGBA (4 channels) */
+    HL_FORMAT_BGRA,   /*!< 8-bit BGRA (4 channels) */
+    HL_FORMAT_RED,   /*!< 8-bit RED (1 channel) */
+    HL_FORMAT_GRAYSCALE,   /*!< 8-bit grayscale (1 channel) */
+    HL_FORMAT_GRAYSCALEALPHA,   /*!< 8-bit grayscale alpha (1 channel) */
+	HL_FORMAT_COUNT
 } hl_textureFormat;
 
 typedef enum hl_textureDataType {
-	hl_textureDataInt = 0,
-	hl_textureDataFloat
+	HL_TEXTURE_DATA_INT = 0,
+	HL_TEXTURE_DATA_FLOAT
 } hl_textureDataType;
 
 typedef enum hl_textureFilter {
-	hl_filterNearest = 0,
-	hl_filterLinear
+	HL_FILTER_NEAREST = 0,
+	HL_FILTER_LINEAR
 } hl_textureFilter;
 
 typedef struct hl_textureBlob {
@@ -151,381 +144,187 @@ typedef struct hl_textureBlob {
 
 /* Flags for creating a window */
 typedef enum hl_windowFlags {
-	hl_windowNoBorder = HL_BIT(0), /*!< the window doesn't have a border */
-	hl_windowNoResize = HL_BIT(1), /*!< the window cannot be resized by the user */
-	hl_windowAllowDND = HL_BIT(2), /*!< the window supports drag and drop */
-	hl_windowHideMouse = HL_BIT(3), /*! the window should hide the mouse (can be toggled later on using `hl_window_showMouse`) */
-	hl_windowFullscreen = HL_BIT(4), /*!< the window is fullscreen by default */
-	hl_windowTransparent = HL_BIT(5), /*!< the window is transparent (only properly works on X11 and MacOS, although it's meant for for windows) */
-	hl_windowCenter = HL_BIT(6), /*! center the window on the screen */
-	hl_windowScaleToMonitor = HL_BIT(7), /*! scale the window to the screen */
-	hl_windowHide = HL_BIT(8), /*! the window is hidden */
-	hl_windowMaximize = HL_BIT(9),
-	hl_windowCenterCursor = HL_BIT(10),
-	hl_windowFloating = HL_BIT(11), /*!< create a floating window */
-	hl_windowFocusOnShow = HL_BIT(12), /*!< focus the window when it's shown */
-	hl_windowMinimize = HL_BIT(13), /*!< focus the window when it's shown */
-	hl_windowFocus = HL_BIT(14), /*!< if the window is in focus */
-	hl_windowedFullscreen = hl_windowNoBorder | hl_windowMaximize,
+	HL_WINDOW_NO_BORDER = HL_BIT(0), /*!< the window doesn't have a border */
+	HL_WINDOW_NO_RESIZE = HL_BIT(1), /*!< the window cannot be resized by the user */
+	HL_WINDOW_ALLOW_DND = HL_BIT(2), /*!< the window supports drag and drop */
+	HL_WINDOW_HIDE_MOUSE = HL_BIT(3), /*! the window should hide the mouse  */
+	HL_WINDOW_FULLSCREEN = HL_BIT(4), /*!< the window is fullscreen by default */
+	HL_WINDOW_OPAQUE = HL_BIT(5), /*!< the window is transparent */
+	HL_WINDOW_SCALE_TO_MONITOR = HL_BIT(7), /*! scale the window to the screen */
+	HL_WINDOW_HIDE = HL_BIT(8), /*! the window is hidden */
+	HL_WINDOW_MAXIMIZE = HL_BIT(9),
+	HL_WINDOW_FLOATING = HL_BIT(11), /*!< create a floating window */
+	HL_WINDOW_FOCUS_ON_SHOW = HL_BIT(12), /*!< focus the window when it's shown */
+	HL_WINDOW_MINIMIZE = HL_BIT(13), /*!< focus the window when it's shown */
+	HL_WINDOW_FOCUS = HL_BIT(14), /*!< if the window is in focus */
 
 	/* renderer flags */
-	hl_windowOpenGLLegacy = HL_BIT(15), /*!< use the modern OpenGL renderer */
-	hl_windowOpenGLModern = HL_BIT(16), /*!< use the legacy OpenGL renderer */
+	HL_RENDERER_GL_LEGACY = HL_BIT(15), /*!< use the modern OpenGL renderer */
+	HL_RENDERER_GL_MODERN = HL_BIT(16), /*!< use the legacy OpenGL renderer */
 } hl_windowFlags;
 
 /* handle to the source RGFW window */
 typedef void* hl_windowHandle;
 
-typedef enum hl_key {
-	hl_keyNULL = 0,
-	hl_escape = '\033',
-	hl_backtick = '`',
-	hl_0 = '0',
-	hl_1 = '1',
-	hl_2 = '2',
-	hl_3 = '3',
-	hl_4 = '4',
-	hl_5 = '5',
-	hl_6 = '6',
-	hl_7 = '7',
-	hl_8 = '8',
-	hl_9 = '9',
-	hl_minus = '-',
-	hl_equals = '=',
-	hl_backSpace = '\b',
-	hl_tab = '\t',
-	hl_space = ' ',
-	hl_a = 'a',
-	hl_b = 'b',
-	hl_c = 'c',
-	hl_d = 'd',
-	hl_e = 'e',
-	hl_f = 'f',
-	hl_g = 'g',
-	hl_h = 'h',
-	hl_i = 'i',
-	hl_j = 'j',
-	hl_k = 'k',
-	hl_l = 'l',
-	hl_m = 'm',
-	hl_n = 'n',
-	hl_o = 'o',
-	hl_p = 'p',
-	hl_q = 'q',
-	hl_r = 'r',
-	hl_s = 's',
-	hl_t = 't',
-	hl_u = 'u',
-	hl_v = 'v',
-	hl_w = 'w',
-	hl_x = 'x',
-	hl_y = 'y',
-	hl_z = 'z',
-	hl_period = '.',
-	hl_comma = ',',
-	hl_slash = '/',
-	hl_bracket = '[',
-    hl_closeBracket = ']',
-    hl_semicolon = ';',
-	hl_apostrophe = '\'',
-	hl_backSlash = '\\',
-	hl_return = '\n',
-	hl_enter = hl_return,
-	hl_delete = '\177', /* 127 */
-	hl_F1,
-	hl_F2,
-	hl_F3,
-	hl_F4,
-	hl_F5,
-	hl_F6,
-	hl_F7,
-	hl_F8,
-	hl_F9,
-	hl_F10,
-	hl_F11,
-	hl_F12,
-    hl_F13,
-    hl_F14,
-    hl_F15,
-    hl_F16,
-    hl_F17,
-    hl_F18,
-    hl_F19,
-    hl_F20,
-    hl_F21,
-    hl_F22,
-    hl_F23,
-    hl_F24,
-    hl_F25,
-	hl_capsLock,
-	hl_shiftL,
-	hl_controlL,
-	hl_altL,
-	hl_superL,
-	hl_shiftR,
-	hl_controlR,
-	hl_altR,
-	hl_superR,
-	hl_up,
-	hl_down,
-	hl_left,
-	hl_right,
-	hl_insert,
-	hl_menu,
-	hl_end,
-	hl_home,
-	hl_pageUp,
-	hl_pageDown,
-	hl_numLock,
-	hl_kpSlash,
-	hl_kpMultiply,
-	hl_kpPlus,
-	hl_kpMinus,
-	hl_kpEqual,
-	hl_kp1,
-	hl_kp2,
-	hl_kp3,
-	hl_kp4,
-	hl_kp5,
-	hl_kp6,
-	hl_kp7,
-	hl_kp8,
-	hl_kp9,
-	hl_kp0,
-	hl_kpPeriod,
-	hl_kpReturn,
-	hl_scrollLock,
-    hl_printScreen,
-    hl_pause,
-	hl_world1,
-    hl_world2,
-    hl_keyLast = 256 /* padding for alignment ~(175 by default) */
-} hl_key;
+typedef enum hl_keyCode {
+	HL_KEY_NULL = 0,
+	HL_KEY_ESCAPE = '\033',
+	HL_KEY_BACKTICK = '`',
+	HL_KEY_0 = '0',
+	HL_KEY_1 = '1',
+	HL_KEY_2 = '2',
+	HL_KEY_3 = '3',
+	HL_KEY_4 = '4',
+	HL_KEY_5 = '5',
+	HL_KEY_6 = '6',
+	HL_KEY_7 = '7',
+	HL_KEY_8 = '8',
+	HL_KEY_9 = '9',
+	HL_KEY_MINUS = '-',
+	HL_KEY_EQUALS = '=',
+	HL_KEY_BACKSPACE = '\b',
+	HL_KEY_TAB = '\t',
+	HL_KEY_SPACE = ' ',
+	HL_KEY_A = 'a',
+	HL_KEY_B = 'b',
+	HL_KEY_C = 'c',
+	HL_KEY_D = 'd',
+	HL_KEY_E = 'e',
+	HL_KEY_F = 'f',
+	HL_KEY_G = 'g',
+	HL_KEY_H = 'h',
+	HL_KEY_I = 'i',
+	HL_KEY_J = 'j',
+	HL_KEY_K = 'k',
+	HL_KEY_L = 'l',
+	HL_KEY_M = 'm',
+	HL_KEY_N = 'n',
+	HL_KEY_O = 'o',
+	HL_KEY_P = 'p',
+	HL_KEY_Q = 'q',
+	HL_KEY_R = 'r',
+	HL_KEY_S = 's',
+	HL_KEY_T = 't',
+	HL_KEY_U = 'u',
+	HL_KEY_V = 'v',
+	HL_KEY_W = 'w',
+	HL_KEY_X = 'x',
+	HL_KEY_Y = 'y',
+	HL_KEY_Z = 'z',
+	HL_KEY_PERIOD = '.',
+	HL_KEY_COMMA = ',',
+	HL_KEY_SLASH = '/',
+	HL_KEY_BRACKET = '[',
+    HL_KEY_CLOSE_BRACKET = ']',
+    HL_KEY_SEMICOLON = ';',
+	HL_KEY_APOSTROPHE = '\'',
+	HL_KEY_BACKSLASH = '\\',
+	HL_KEY_RETURN = '\n',
+	HL_KEY_ENTER = HL_KEY_RETURN,
+	HL_KEY_DELETE = '\177', /* 127 */
+	HL_KEY_F1,
+	HL_KEY_F2,
+	HL_KEY_F3,
+	HL_KEY_F4,
+	HL_KEY_F5,
+	HL_KEY_F6,
+	HL_KEY_F7,
+	HL_KEY_F8,
+	HL_KEY_F9,
+	HL_KEY_F10,
+	HL_KEY_F11,
+	HL_KEY_F12,
+    HL_KEY_F13,
+    HL_KEY_F14,
+    HL_KEY_F15,
+    HL_KEY_F16,
+    HL_KEY_F17,
+    HL_KEY_F18,
+    HL_KEY_F19,
+    HL_KEY_F20,
+    HL_KEY_F21,
+    HL_KEY_F22,
+    HL_KEY_F23,
+    HL_KEY_F24,
+    HL_KEY_F25,
+	HL_KEY_CAPSLOCK,
+	HL_KEY_SHIFT_LEFT,
+	HL_KEY_CONTROL_LEFT,
+	HL_KEY_ALT_LEFT,
+	HL_KEY_SUPER_LEFT,
+	HL_KEY_SHIFT_RIGHT,
+	HL_KEY_CONTROL_RIGHT,
+	HL_KEY_ALT_RIGHT,
+	HL_KEY_SUPER_RIGHT,
+	HL_KEY_UP,
+	HL_KEY_DOWN,
+	HL_KEY_LEFT,
+	HL_KEY_RIGHT,
+	HL_KEY_INSERT,
+	HL_KEY_MENU,
+	HL_KEY_END,
+	HL_KEY_HOME,
+	HL_KEY_PAGE_UP,
+	HL_KEY_PAGE_DOWN,
+	HL_KEY_NUMLOCK,
+	HL_KEY_KP_SLASH,
+	HL_KEY_KP_MULTIPLY,
+	HL_KEY_KP_PLUS,
+	HL_KEY_KP_MINUS,
+	HL_KEY_KP_EQUAL,
+	HL_KEY_KP_1,
+	HL_KEY_KP_2,
+	HL_KEY_KP_3,
+	HL_KEY_KP_4,
+	HL_KEY_KP_5,
+	HL_KEY_KP_6,
+	HL_KEY_KP_7,
+	HL_KEY_KP_8,
+	HL_KEY_KP_9,
+	HL_KEY_KP_0,
+	HL_KEY_KP_PERIOD,
+	HL_KEY_KP_RETURN,
+	HL_KEY_SCROLLLOCK,
+    HL_KEY_PRINTSCREEN,
+    HL_KEY_PAUSE,
+	HL_KEY_WORLD1,
+    HL_KEY_WORLD2,
+    HL_KEYLast = 256 /* padding for alignment ~(175 by default) */
+} hl_keyCode;
 
 /*! @brief abstract mouse button codes */
 typedef enum hl_mouseButton {
-	hl_mouseLeft = 0, /*!< left mouse button is pressed */
-	hl_mouseMiddle, /*!< mouse-wheel-button is pressed */
-	hl_mouseRight, /*!< right mouse button is pressed */
-	hl_mouseMisc1, hl_mouseMisc2, hl_mouseMisc3, hl_mouseMisc4, hl_mouseMisc5,
-	hl_mouseFinal
+	HL_MOUSE_LEFT = 0, /*!< left mouse button is pressed */
+	HL_MOUSE_MIDDLE, /*!< mouse-wheel-button is pressed */
+	HL_MOUSE_RIGHT, /*!< right mouse button is pressed */
+	HL_MOUSE_MISC1, HL_MOUSE_MISC2, HL_MOUSE_MISC3, HL_MOUSE_MISC4, HL_MOUSE_MISC5,
+	HL_MOUSE_FINAL
 } hl_mouseButton;
 
 /*! abstract key modifier codes */
 typedef enum hl_keymod {
-	hl_modCapsLock = HL_BIT(0),
-	hl_modNumLock  = HL_BIT(1),
-	hl_modControl  = HL_BIT(2),
-	hl_modAlt = HL_BIT(3),
-	hl_modShift  = HL_BIT(4),
-	hl_modSuper = HL_BIT(5),
-	hl_modScrollLock = HL_BIT(6)
+	HL_MOD_CAPSLOCK = HL_BIT(0),
+	HL_MOD_NUMLOCK  = HL_BIT(1),
+	HL_MOD_CONTROL  = HL_BIT(2),
+	HL_MOD_ALT = HL_BIT(3),
+	HL_MOD_SHIFT  = HL_BIT(4),
+	HL_MOD_SUPER = HL_BIT(5),
+	HL_MOD_SCROLLLOCK = HL_BIT(6)
 } hl_keymod;
-
-/*! @brief codes for the event types that can be sent */
-typedef enum hl_eventType {
-	hl_eventNone = 0, /*!< no event has been sent */
- 	hl_keyPressed, /* a key has been pressed */
-	hl_keyReleased, /*!< a key has been released */
-	/*! key event note
-		the code of the key pressed is stored in
-		hl_event.key.value
-		!!Keycodes defined at the bottom of the hl_HEADER part of this file!!
-
-		while a string version is stored in
-		hl_event.key.valueString
-
-		hl_event.key.mod holds the current mod
-		this means if CapsLock, NumLock are active or not
-	*/
-	hl_mouseButtonPressed, /*!< a mouse button has been pressed (left,middle,right) */
-	hl_mouseButtonReleased, /*!< a mouse button has been released (left,middle,right) */
-	hl_mouseScroll, /*!< a mouse scroll event */
-	hl_mousePosChanged, /*!< the position of the mouse has been changed */
-	/*! mouse event note
-		the x and y of the mouse can be found in the vector, hl_x, y
-
-		hl_event.button.value holds which mouse button was pressed
-	*/
-	hl_windowMoved, /*!< the window was moved (by the user) */
-	hl_windowResized, /*!< the window was resized (by the user), [on WASM this means the browser was resized] */
-	hl_focusIn, /*!< window is in focus now */
-	hl_focusOut, /*!< window is out of focus now */
-	hl_mouseEnter, /* mouse entered the window */
-	hl_mouseLeave, /* mouse left the window */
-	hl_windowRefresh, /* The window content needs to be refreshed */
-
-	/* attribs change event note
-		The event data is sent straight to the window structure
-		with win->x, win->y, win->w and win->h
-	*/
-	hl_quit, /*!< the user clicked the quit button */
-	hl_dataDrop, /*!< a file has been dropped into the window */
-	hl_dataDrag, /*!< the start of a drag and drop event, when the file is being dragged */
-	/* drop data note
-		The x and y coords of the drop are stored in the vector hl_x, y
-
-		hl_event.drop.count holds how many files were dropped
-
-		This is also the size of the array which stores all the dropped file string,
-		hl_event.drop.files
-	*/
-	hl_windowMaximized, /*!< the window was maximized */
-	hl_windowMinimized, /*!< the window was minimized */
-	hl_windowRestored, /*!< the window was restored */
-	hl_scaleUpdated /*!< content scale factor changed */
-} hl_eventType;
-
-/*! Event structure(s) and union for checking/getting events */
-
-/*! @brief common event data across all events */
-typedef struct hl_commonEvent {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_windowHandle win; /*!< the window this event applies too (for event queue events) */
-} hl_commonEvent;
-
-/*! @brief event data for any mouse button event (press/release) */
-typedef struct hl_mouseButtonEvent {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_windowHandle win; /*!< the window this event applies too (for event queue events) */
-	uint8_t value; /* !< which mouse button was pressed */
-} hl_mouseButtonEvent;
-
-/*! @brief event data for any mouse scroll event */
-typedef struct hl_mouseScrollEvent {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_windowHandle win; /*!< the window this event applies too (for event queue events) */
-	float x, y; /*!< the raw mouse scroll value */
-} hl_mouseScrollEvent;
-
-/*! @brief event data for any mouse position event (hl_mousePosChanged) */
-typedef struct hl_mousePosEvent {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_windowHandle win; /*!< the window this event applies too (for event queue events) */
-	int32_t x, y; /*!< mouse x, y of event (or drop point) */
-	float vecX, vecY; /*!< raw mouse movement */
-} hl_mousePosEvent;
-
-/*! @brief event data for any key event (press/release) */
-typedef struct hl_keyEvent {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_windowHandle win; /*!< the window this event applies too (for event queue events) */
-	hl_key value; /*!< the physical key of the event, refers to where key is physically !!Keycodes defined at the bottom of the hl_HEADER part of this file!! */
-	uint8_t sym; /*!< mapped key char of the event */
-	bool repeat; /*!< key press event repeated (the key is being held) */
-	hl_keymod mod;
-} hl_keyEvent;
-
-/*! @brief event data for any data drop event */
-typedef struct hl_dataDropEvent {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_windowHandle win; /*!< the window this event applies too (for event queue events) */
-	/* 260 max paths with a max length of 260 */
-	char** files; /*!< dropped files */
-	size_t count; /*!< how many files were dropped */
-} hl_dataDropEvent;
-
-/*! @brief event data for any data drag event */
-typedef struct hl_dataDragEvent {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_windowHandle win; /*!< the window this event applies too (for event queue events) */
-	int32_t x, y; /*!< mouse x, y of event (or drop point) */
-} hl_dataDragEvent;
-
-/*! @brief event data for when the window scale (DPI) is updated */
-typedef struct hl_scaleUpdatedEvent {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_windowHandle win; /*!< the window this event applies too (for event queue events) */
-	float x, y; /*!< DPI scaling */
-} hl_scaleUpdatedEvent;
-
-/*! @brief union for all of the event stucture types */
-typedef union hl_event {
-	hl_eventType type; /*!< which event has been sent?*/
-	hl_commonEvent common; /*!< common event data (e.g.) type and win */
-	hl_mouseButtonEvent button; /*!< data for a button press/release */
-	hl_mouseScrollEvent scroll; /*!< data for a mouse scroll */
-	hl_mousePosEvent mouse; /*!< data for mouse motion events */
-	hl_keyEvent key; /*!< data for key press/release/hold events */
-	hl_dataDropEvent drop; /*!< dropping a file events */
-	hl_dataDragEvent drag; /* data for dragging a file events */
-	hl_scaleUpdatedEvent scale; /* data for monitor scaling events */
-} hl_event;
-
-/*! @brief the type of debug message */
-typedef enum hl_debugType {
-	hl_typeError = 0, hl_typeWarning, hl_typeInfo
-} hl_debugType;
-
-/*! @brief error codes for known failure types */
-typedef enum hl_errorCode {
-	hl_noError = 0, /*!< no error */
-	hl_errOutOfMemory,
-	hl_errOpenGLContext, hl_errEGLContext, /*!< error with the OpenGL context */
-	hl_errWayland, hl_errX11,
-	hl_errDirectXContext,
-	hl_errIOKit,
-	hl_errClipboard,
-	hl_errFailedFuncLoad,
-	hl_errBuffer,
-	hl_errEventQueue,
-	hl_infoMonitor, hl_infoWindow, hl_infoBuffer, hl_infoGlobal, hl_infoOpenGL,
-	hl_warningWayland, hl_warningOpenGL
-} hl_errorCode;
-
-/*! @brief callback function type for debug messags */
-
-typedef void (* hl_debugfunc)(hl_debugType type, hl_errorCode err, const char* msg);
-
-/*! @brief hl_windowMoved, the window and its new rect value  */
-typedef void (* hl_windowMovedfunc)(hl_windowHandle win, int32_t x, int32_t y);
-/*! @brief hl_windowResized, the window and its new rect value  */
-typedef void (* hl_windowResizedfunc)(hl_windowHandle win, int32_t w, int32_t h);
-/*! @brief hl_windowRestored, the window and its new rect value  */
-typedef void (* hl_windowRestoredfunc)(hl_windowHandle win, int32_t x, int32_t y, int32_t w, int32_t h);
-/*! @brief hl_windowMaximized, the window and its new rect value  */
-typedef void (* hl_windowMaximizedfunc)(hl_windowHandle win, int32_t x, int32_t y, int32_t w, int32_t h);
-/*! @brief hl_windowMinimized, the window and its new rect value  */
-typedef void (* hl_windowMinimizedfunc)(hl_windowHandle win);
-/*! @brief hl_quit, the window that was closed */
-typedef void (* hl_windowQuitfunc)(hl_windowHandle win);
-/*! @brief hl_focusIn / hl_focusOut, the window who's focus has changed and if its in focus */
-typedef void (* hl_focusfunc)(hl_windowHandle win, bool inFocus);
-/*! @brief hl_mouseEnter / hl_mouseLeave, the window that changed, the point of the mouse (enter only) and if the mouse has entered */
-typedef void (* hl_mouseNotifyfunc)(hl_windowHandle win, int32_t x, int32_t y, bool status);
-/*! @brief hl_mousePosChanged, the window that the move happened on, and the new point of the mouse  */
-typedef void (* hl_mousePosfunc)(hl_windowHandle win, int32_t x, int32_t y, float vecX, float vecY);
-/*! @brief hl_dataDrag, the window, the point of the drop on the windows */
-typedef void (* hl_dataDragfunc)(hl_windowHandle win, int32_t x, int32_t y);
-/*! @brief hl_windowRefresh, the window that needs to be refreshed */
-typedef void (* hl_windowRefreshfunc)(hl_windowHandle win);
-/*! @brief hl_keyPressed / hl_keyReleased, the window that got the event, the mapped key, the physical key, the string version, the state of the mod keys, if it was a press (else it's a release) */
-typedef void (* hl_keyfunc)(hl_windowHandle win, uint8_t key, uint8_t sym, hl_keymod mod, bool repeat, bool pressed);
-/*! @brief hl_mouseButtonPressed / hl_mouseButtonReleased, the window that got the event, the button that was pressed, the scroll value, if it was a press (else it's a release)  */
-typedef void (* hl_mouseButtonfunc)(hl_windowHandle win, hl_mouseButton button, bool pressed);
-/*! @brief hl_mouseScroll, the window that got the event, the x scroll value, the y scroll value */
-typedef void (* hl_mouseScrollfunc)(hl_windowHandle win, float x, float y);
-/*! @brief hl_dataDrop the window that had the drop, the drop data and the number of files dropped */
-typedef void (* hl_dataDropfunc)(hl_windowHandle win, char** files, size_t count);
-/*! @brief hl_scaleUpdated, the window the event was sent to, content scaleX, content scaleY */
-typedef void (* hl_scaleUpdatedfunc)(hl_windowHandle win, float scaleX, float scaleY);
-
 
 /*
  * Renderer types
  * these types are used for the renderer section of the Hoglib API
 */
 
-typedef enum hl_rendererType {
-	hl_rendererOpenGLModern = 0, /*!< default renderer */
-	hl_rendererOpenGLLegacy /*!< legacy OpenGL (0.0) renderer */
-} hl_rendererType;
-
 /* handle to the source RSGL renderer */
 typedef void* hl_rendererHandle;
 
 /* handle to a texture resource */
 typedef void* hl_textureHandle;
+
+/* handle to font resource */
+typedef void* hl_fontHandle;
 
 typedef struct hl_rect { float x, y, w, h; } hl_rect;
 
@@ -583,21 +382,21 @@ HL_API void hl_pollEvents(void);
  * @param key the key code of the key you want to check
  * @return The boolean value if the key is pressed or not
 */
-HL_API bool hl_isKeyPressed(hl_key key);
+HL_API bool hl_isKeyPressed(hl_keyCode key);
 
 /**!
  * @brief returns true if the key was released during the current frame
  * @param key the key code of the key you want to check
  * @return The boolean value if the key is released or not
 */
-HL_API bool hl_isKeyReleased(hl_key key);
+HL_API bool hl_isKeyReleased(hl_keyCode key);
 
 /**!
  * @brief returns true if the key is down
  * @param key the key code of the key you want to check
  * @return The boolean value if the key is down or not
 */
-HL_API bool hl_isKeyDown(hl_key key);
+HL_API bool hl_isKeyDown(hl_keyCode key);
 
 /**!
  * @brief returns true if the mouse button is pressed during the current frame
@@ -638,20 +437,18 @@ HL_API void hl_getMouseVector(float* x, float* y);
 /**!
  * @brief creates a new window
  * @param name the requested title of the window
- * @param x the requested x position of the window
- * @param y the requested y position of the window
  * @param w the requested width of the window
  * @param h the requested height of the window
  * @param flags extra arguments ((u32)0 means no flags used)
  * @return A handle to the newly created window structure
 */
-HL_API hl_windowHandle hl_window_init(const char* name, int32_t x, int32_t y, int32_t width, int32_t height, hl_windowFlags flags);
+HL_API hl_windowHandle hl_createWindow(const char* name, int32_t width, int32_t height, hl_windowFlags flags);
 
 /**!
  * @brief closes the window and frees its associated structure
  * @param win a handle to the target window
 */
-HL_API void hl_window_close(hl_windowHandle window);
+HL_API void hl_closeWindow(hl_windowHandle window);
 
 /**!
  * @brief Sets whether the window should close.
@@ -659,174 +456,7 @@ HL_API void hl_window_close(hl_windowHandle window);
  * @param win The target window.
  * @param shouldClose True to signal the window should close, false to keep it open.
 */
-HL_API bool hl_window_shouldClose(hl_windowHandle window);
-
-/**!
- * @brief polls and pops the next event from the window's event queue
- * @param handle to the window object
- * @param event [OUTPUT] a handle to store the retrieved event
- * @return hl_TRUE if an event was found, hl_FALSE otherwise
- *
- * NOTE: Using this function without a loop may cause event lag.
- * For multi-threaded systems, use hl_pollEvents combined with hl_window_checkQueuedEvent.
- *
- * Example:
- * hl_event event;
- * while (hl_window_checkEvent(win, &event)) {
- *     // handle event
- * }
-*/
-HL_API bool hl_window_checkEvent(hl_windowHandle window, hl_event* event);
-
-/**!
- * @brief pops the first queued event for the window
- * @param handle to the window object
- * @param event [OUTPUT] a handle to store the retrieved event
- * @return hl_TRUE if an event was found, hl_FALSE otherwise
-*/
-HL_API bool hl_window_checkQueuedEvent(hl_windowHandle window, hl_event* event);
-
-/** * @defgroup error handling
-* @{ */
-/**!
- * @brief Sets the callback function to handle debug messages from RGFW.
- * @param func The function handle to be used as the debug callback.
- * @return The previously set debug callback function.
-*/
-HL_API hl_debugfunc hl_setDebugCallback(hl_debugfunc func);
-
-/**!
- * @brief Sends a debug message manually through the currently set debug callback.
- * @param type The type of debug message being sent.
- * @param err The associated error code.
- * @param msg The debug message text.
-*/
-HL_API void hl_sendDebugInfo(hl_debugType type, hl_errorCode err, const char* msg);
-/** @} */
-
-/**
-
-
-	event callbacks.
-	These are completely optional, so you can use the normal
-	hl_checkEvent() method if you prefer that
-
-* @defgroup Callbacks
-* @{
-*/
-
-/**!
- * @brief Sets the callback function for window move events.
- * @param func The function to be called when the window is moved.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_windowMovedfunc hl_setWindowMovedCallback(hl_windowMovedfunc func);
-
-/**!
- * @brief Sets the callback function for window resize events.
- * @param func The function to be called when the window is resized.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_windowResizedfunc hl_setWindowResizedCallback(hl_windowResizedfunc func);
-
-/**!
- * @brief Sets the callback function for window quit events.
- * @param func The function to be called when the window receives a quit signal.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_windowQuitfunc hl_setWindowQuitCallback(hl_windowQuitfunc func);
-
-/**!
- * @brief Sets the callback function for mouse move events.
- * @param func The function to be called when the mouse moves within the window.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_mousePosfunc hl_setMousePosCallback(hl_mousePosfunc func);
-
-/**!
- * @brief Sets the callback function for window refresh events.
- * @param func The function to be called when the window needs to be refreshed.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_windowRefreshfunc hl_setWindowRefreshCallback(hl_windowRefreshfunc func);
-
-/**!
- * @brief Sets the callback function for focus change events.
- * @param func The function to be called when the window gains or loses focus.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_focusfunc hl_setFocusCallback(hl_focusfunc func);
-
-/**!
- * @brief Sets the callback function for mouse notification events.
- * @param func The function to be called when a mouse notification event occurs.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_mouseNotifyfunc hl_setMouseNotifyCallback(hl_mouseNotifyfunc func);
-
-/**!
- * @brief Sets the callback function for data drop events.
- * @param func The function to be called when data is dropped into the window.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_dataDropfunc hl_setDataDropCallback(hl_dataDropfunc func);
-
-/**!
- * @brief Sets the callback function for the start of a data drag event.
- * @param func The function to be called when data dragging begins.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_dataDragfunc hl_setDataDragCallback(hl_dataDragfunc func);
-
-/**!
- * @brief Sets the callback function for key press and release events.
- * @param func The function to be called when a key is pressed or released.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_keyfunc hl_setKeyCallback(hl_keyfunc func);
-
-/**!
- * @brief Sets the callback function for mouse button press and release events.
- * @param func The function to be called when a mouse button is pressed or released.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_mouseButtonfunc hl_setMouseButtonCallback(hl_mouseButtonfunc func);
-
-/**!
- * @brief Sets the callback function for mouse scroll events.
- * @param func The function to be called when the mouse wheel is scrolled.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_mouseScrollfunc hl_setMouseScrollCallback(hl_mouseScrollfunc func);
-
-/**!
- * @brief Sets the callback function for window maximize events.
- * @param func The function to be called when the window is maximized.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_windowMaximizedfunc hl_setWindowMaximizedCallback(hl_windowMaximizedfunc func);
-
-/**!
- * @brief Sets the callback function for window minimize events.
- * @param func The function to be called when the window is minimized.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_windowMinimizedfunc hl_setWindowMinimizedCallback(hl_windowMinimizedfunc func);
-
-/**!
- * @brief Sets the callback function for window restore events.
- * @param func The function to be called when the window is restored from a minimized or maximized state.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_windowRestoredfunc hl_setWindowRestoredCallback(hl_windowRestoredfunc func);
-
-/**!
- * @brief Sets the callback function for DPI (scale) update events.
- * @param func The function to be called when the window’s DPI or scale changes.
- * @return The previously set callback function, if any.
-*/
-HL_API hl_scaleUpdatedfunc hl_setScaleUpdatedCallback(hl_scaleUpdatedfunc func);
-/** @} */
+HL_API bool hl_shouldWindowClose(hl_windowHandle window);
 
 /**!
  * @brief Retrieves the mouse position relative to the window.
@@ -835,7 +465,7 @@ HL_API hl_scaleUpdatedfunc hl_setScaleUpdatedCallback(hl_scaleUpdatedfunc func);
  * @param y [OUTPUT] handle to store the Y position within the window.
  * @return True if the position was successfully retrieved.
 */
-HL_API bool hl_window_getMouse(hl_windowHandle window, int32_t* x, int32_t* y);
+HL_API bool hl_getWindowMouse(hl_windowHandle window, int32_t* x, int32_t* y);
 
 /**!
  * @brief fetch the window size
@@ -843,14 +473,14 @@ HL_API bool hl_window_getMouse(hl_windowHandle window, int32_t* x, int32_t* y);
  * @param [OUTPUT] handle to int width part
  * @param [OUTPUT] handle to int height part
 */
-HL_API void hl_window_getSize(hl_windowHandle window, int32_t* width, int32_t* height);
+HL_API void hl_getWindowSize(hl_windowHandle window, int32_t* width, int32_t* height);
 
 /**!
  * @brief fetch the window's renderer object
  * @param the source window
  * @return returns a handle to the window's renderer object
 */
-HL_API hl_rendererHandle hl_window_getRenderer(hl_windowHandle window);
+HL_API hl_rendererHandle hl_getWindowRenderer(hl_windowHandle window);
 
 /*
  * Rendering API
@@ -863,69 +493,86 @@ HL_API hl_rendererHandle hl_window_getRenderer(hl_windowHandle window);
  * @return returns a handle (or NULL on failure) to the renderer
 */
 
-HL_API hl_rendererHandle hl_renderer_init(hl_rendererType type, hl_windowHandle window);
-HL_API void hl_renderer_free(hl_rendererHandle handle);
+HL_API hl_rendererHandle hl_initRenderer(uint32_t type, hl_windowHandle window);
+HL_API void hl_freeRenderer(hl_rendererHandle handle);
 
 /**!
  * @brief setup renderer for the new frame
- * @param handle to the renderer in use
+ * @param handle to the window surface to renderer to that includes an attached renderer
 */
-HL_API void hl_renderer_start(hl_rendererHandle window);
+HL_API void hl_startFrame(hl_rendererHandle window);
 
 /**!
  * @brief finish rendering the new frame using the render data
+ * @param handle to the window surface to renderer to that includes an attached renderer
 */
-HL_API void hl_renderer_finish(void);
+HL_API void hl_finishFrame(hl_windowHandle window);
 
 
 /**!
  * @brief clear surface to a set background color
  * @param color object
 */
-HL_API void hl_clear(hl_color color);
+HL_API void hl_clear(hl_windowHandle window, hl_color color);
+
+/**!
+ * @brief create font resource from a source font file
+ * @param handle to the surface object
+ * @param the file name
+ * @param the max height supported by the font
+ * @return a handle to the created font resource objects
+*/
+HL_API hl_fontHandle hl_loadFont(hl_windowHandle window, const char* name, uint32_t maxHeight);
+
+/**!
+ * @brief create font resource from a source font file
+ * @param handle to the surface object
+ * @param handle to the font resource object
+*/
+HL_API void hl_freeFont(hl_windowHandle window, hl_fontHandle font);
 
 /**!
  * @brief create texture from raw image data
- * @param handle to the renderer object
+ * @param handle to the surface object
  * @param blob of texture data
  * @return handle to the created texture resource
 */
-HL_API hl_textureHandle hl_createTextureFromBlob(hl_rendererHandle renderer, const hl_textureBlob* blob);
+HL_API hl_textureHandle hl_loadTextureFromBlob(hl_windowHandle window, const hl_textureBlob* blob);
 
 /**!
  * @brief create texture from a image file
- * @param handle to the renderer object
+ * @param handle to the surface object
  * @param file name string
  * @return handle to the created texture resource
 */
-HL_API hl_textureHandle hl_renderer_createTextureFromImage(hl_rendererHandle renderer, const char* file);
+HL_API hl_textureHandle hl_loadTextureFromImage(hl_windowHandle window, const char* file);
 
 /**!
- * @brief create texture from a image file
+ * @brief free the texture
  * @param handle to texture resource
 */
-HL_API void hl_renderer_freeTexture(hl_rendererHandle renderer, hl_textureHandle texture);
+HL_API void hl_freeTexture(hl_windowHandle window, hl_textureHandle texture);
 
 /**!
  * @brief set texture to use for rendering
  * @param handle renderer object
  * @param handle to the texture resource
 */
-HL_API void hl_setTexture(hl_textureHandle texture);
+HL_API void hl_setTexture(hl_windowHandle window, hl_textureHandle texture);
 
 /**!
  * @brief set draw foreground color
- * @param handle to the renderer object
+ * @param handle to the surface object
  * @param color object
 */
-HL_API void hl_setColor(hl_color color);
+HL_API void hl_setColor(hl_windowHandle window, hl_color color);
 
 /**!
  * @brief draw rectangle to the surface
- * @param handle to the renderer object
+ * @param handle to the surface object
  * @param rect object
 */
-HL_API void hl_drawRect(hl_rect rect);
+HL_API void hl_drawRect(hl_windowHandle window, hl_rect rect);
 
 #ifdef __cplusplus
 }

@@ -725,6 +725,7 @@ i32 RSGL_drawRawVerts(RSGL_renderer* renderer, const RSGL_rawVerts* data) {
     RSGL_MEMCPY(&renderer->data.texCoords[renderer->data.len * 2], data->texCoords, data->vert_count * sizeof(float) * 2);
 
 	size_t i;
+
 	for (i = 0; i < data->elmCount; i++) {
 		size_t index = renderer->data.elements_count + i;
 		u16 elm = data->elements[i] + (u16)renderer->data.len;
@@ -842,6 +843,7 @@ void RSGL_renderer_initPtr(RSGL_rendererProc proc, void* loader, void* data, RSG
 	renderer->data.elements = renderer->elements;
 	renderer->data.colors = renderer->colors;
 	renderer->data.len = 0;
+	renderer->data.elements_count = 0;
 
 	if (renderer->proc.initPtr)
 		renderer->proc.initPtr(renderer->ctx, loader);
@@ -889,6 +891,7 @@ void RSGL_renderer_freePtr(RSGL_renderer* renderer) {
 
 	renderer->state.buffers->batchCount = 0;
 	renderer->data.len = 0;
+	renderer->data.elements_count = 0;
 }
 
 void RSGL_renderer_free(RSGL_renderer* renderer) {

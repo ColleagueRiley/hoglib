@@ -1,6 +1,7 @@
 #include "hoglib.h"
 #include "internal.h"
 
+#define RSGL_RFONT
 #define RSGL_IMPLEMENTATION
 #include <RSGL.h>
 #include <RSGL_gl.h>
@@ -12,49 +13,81 @@
 #define RFONT_IMPLEMENTATION
 #include "RFont.h"
 
-static hl_rendererHandle renderer;
+typedef struct hl_rendererInfo {
+	RFont_renderer* renderer_rfont;
+} hl_rendererInfo;
 
-hl_rendererHandle hl_renderer_init(hl_rendererType type, hl_windowHandle window) {
+hl_rendererHandle hl_initRenderer(uint32_t type, hl_windowHandle window) {
 	RSGL_renderer* renderer = NULL;
 
 	switch (type) {
-		case hl_rendererOpenGLModern:
-			renderer = RSGL_renderer_init(RSGL_GL_rendererProc(), (void*)hl_getProcAddress_OpenGL);
+		case HL_RENDERER_GL_MODERN:
+			renderer = RSGL_renderer_init(RSGL_GL_rendererProc(), (void*)hl_getProcAddress);
 			break;
-		case hl_rendererOpenGLLegacy:
-			renderer = RSGL_renderer_init(RSGL_GL1_rendererProc(), (void*)hl_getProcAddress_OpenGL);
+		case HL_RENDERER_GL_LEGACY:
+			renderer = RSGL_renderer_init(RSGL_GL1_rendererProc(), (void*)hl_getProcAddress);
 			break;
 		default: break;
 	}
 
-	renderer->userPtr = window;
-	hl_window_setRenderer(window, renderer);
 
-	hl_renderer_updateSize((hl_rendererHandle)renderer);
+	hl_rendererInfo* info = (hl_rendererInfo*)malloc(sizeof(hl_rendererInfo));
+	info->renderer_rfont = RFont_RSGL_renderer_init(renderer);
+	renderer->userPtr = info;
+
+	hl_setWindowRenderer(window, renderer);
+
+	hl_updateRendererSize(window);
+
 
 	return (hl_rendererHandle)renderer;
 }
 
 
-void hl_renderer_updateSize(hl_rendererHandle* renderer) {
-	hl_windowHandle window = (hl_windowHandle)((RSGL_renderer*)renderer)->userPtr;
+void hl_updateRendererSize(hl_windowHandle window) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 
 	int32_t w, h;
-	hl_window_getSize(window, &w, &h);
+	hl_getWindowSize(window, &w, &h);
 	RSGL_renderer_updateSize((RSGL_renderer*)renderer, w, h);
 	RSGL_renderer_viewport((RSGL_renderer*)renderer, RSGL_RECT(0, 0, w, h));
 }
 
-void hl_renderer_free(hl_rendererHandle renderer) {
+void hl_freeRenderer(hl_windowHandle window) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
+
+	RFont_RSGL_renderer_free(info->renderer_rfont);
+
 	RSGL_renderer_free((RSGL_renderer*)renderer);
+	free(info);
 }
 
-hl_textureHandle hl_createTextureFromBlob(hl_rendererHandle renderer, const hl_textureBlob* blob) {
-    return (void*)RSGL_renderer_createTexture(renderer, (RSGL_textureBlob*)blob);
+hl_fontHandle hl_loadFont(hl_windowHandle window, const char* name, uint32_t maxHeight) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
+
+    RFont_font* font = RFont_font_init(info->renderer_rfont, name, maxHeight, maxHeight * 10, maxHeight * 20);
+
+	return (hl_rendererHandle)font;
 }
 
-hl_textureHandle hl_renderer_createTextureFromImage(hl_rendererHandle renderer, const char* file) {
-    int w, h, c;
+void hl_freeFont(hl_windowHandle window, hl_fontHandle font) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
+    RFont_font_free(info->renderer_rfont, (RFont_font*)font);
+}
+
+
+
+hl_textureHandle hl_loadTextureFromBlob(hl_windowHandle window, const hl_textureBlob* blob) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	return (void*)RSGL_renderer_createTexture(renderer, (RSGL_textureBlob*)blob);
+}
+
+hl_textureHandle hl_loadTextureFromImage(hl_windowHandle window, const char* file) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	int w, h, c;
     u8* data = stbi_load(file, &w, &h, &c, 0);
 
 	RSGL_textureBlob blob;
@@ -71,37 +104,44 @@ hl_textureHandle hl_renderer_createTextureFromImage(hl_rendererHandle renderer, 
 	return (void*)texture;
 }
 
-void hl_renderer_freeTexture(hl_rendererHandle renderer, hl_textureHandle texture) {
+void hl_freeTexture(hl_windowHandle window, hl_textureHandle texture) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_deleteTexture(renderer, (size_t)texture);
 }
 
-void hl_renderer_start(hl_rendererHandle handle) {
-	renderer = handle;
+void hl_startFrame(hl_windowHandle window) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	assert(renderer);
 
-	hl_window_makeCurrentContext_OpenGL(((RSGL_renderer*)handle)->userPtr);
+	hl_makeCurrentContext(window);
+
+	hl_setTexture(window, 0);
 }
 
-void hl_renderer_finish(void) {
-	hl_windowHandle window = (hl_windowHandle)((RSGL_renderer*)renderer)->userPtr;
+void hl_finishFrame(hl_windowHandle window) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_render((RSGL_renderer*)renderer);
 
-	hl_window_swapBuffers_OpenGL(window);
+	hl_swapBuffers(window);
 }
 
-void hl_clear(hl_color color) {
+void hl_clear(hl_windowHandle window, hl_color color) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_clear(renderer, *(RSGL_color*)&color);
 }
 
-void hl_setTexture(hl_textureHandle texture) {
+void hl_setTexture(hl_windowHandle window, hl_textureHandle texture) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_setTexture(renderer, (RSGL_texture)texture);
 }
 
-void hl_setColor(hl_color color) {
+void hl_setColor(hl_windowHandle window, hl_color color) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_setColor(renderer, *(RSGL_color*)&color);
 }
 
-void hl_drawRect(hl_rect rect) {
-	RSGL_drawRect(renderer, *(RSGL_rect*)&rect);
+void hl_drawRect(hl_windowHandle window, hl_rect rect) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	RSGL_drawRect(renderer, RSGL_RECT(rect.x, rect.y, rect.w, rect.h));
 }
 
