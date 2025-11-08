@@ -1,5 +1,7 @@
 #include <hoglib.h>
 
+HL_API hl_windowHandle hl_createWindowPlatform(const char* name, int32_t width, int32_t height, hl_windowFlags flags);
+
 HL_API void hl_updateRendererSize(hl_windowHandle window);
 
 HL_API void hl_setWindowRenderer(hl_windowHandle window, hl_rendererHandle renderer);

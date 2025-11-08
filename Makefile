@@ -29,7 +29,11 @@ else
     OBJECTS = $(SOURCES:.c=.o)
 endif
 
+PLATFORM_BACKEND ?= HL_PLATFORM_RGFW
+
 LIBS = -Iinclude  -Lbuild ./build/libhoglib.a $(RGFW_LIBS)
+
+CFLAGS += -D HL_PLATFORM_RGFW
 
 EXAMPLES = examples/basics/basic
 
