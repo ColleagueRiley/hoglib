@@ -456,7 +456,7 @@ HL_API void hl_closeWindow(hl_windowHandle window);
  * @param win The target window.
  * @param shouldClose True to signal the window should close, false to keep it open.
 */
-HL_API bool hl_shouldWindowClose(hl_windowHandle window);
+HL_API bool hl_windowShouldClose(hl_windowHandle window);
 
 /**!
  * @brief Retrieves the mouse position relative to the window.
@@ -551,7 +551,7 @@ HL_API hl_textureHandle hl_loadTextureFromImage(hl_windowHandle window, const ch
  * @brief free the texture
  * @param handle to texture resource
 */
-HL_API void hl_freeTexture(hl_windowHandle window, hl_textureHandle texture);
+HL_API void hl_releaseTexture(hl_windowHandle window, hl_textureHandle texture);
 
 /**!
  * @brief set texture to use for rendering

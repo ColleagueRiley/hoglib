@@ -4,7 +4,7 @@ int main() {
 	hl_windowHandle window = hl_createWindow("window", 800, 600, HL_RENDERER_GL_MODERN);
 	hl_textureHandle texture = hl_loadTextureFromImage(window, "logo.png");
 
-	while (hl_shouldWindowClose(window) == false) {
+	while (hl_windowShouldClose(window) == false) {
 		hl_pollEvents();
 		if (hl_isKeyPressed(HL_KEY_ESCAPE)) {
 			break;
@@ -24,7 +24,7 @@ int main() {
 		hl_finishFrame(window);
 	}
 
-	hl_freeTexture(window, texture);
+	hl_releaseTexture(window, texture);
 
 	hl_closeWindow(window);
 }

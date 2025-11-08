@@ -21,7 +21,7 @@ Basic hoglib example
 int main() {
 	hl_windowHandle window = hl_createWindow("window", 800, 600, HL_RENDERER_GL_MODERN);
 
-	while (hl_shouldWindowClose(window) == false) {
+	while (hl_windowShouldClose(window) == false) {
 		hl_pollEvents();
 		if (hl_isKeyPressed(HL_KEY_ESCAPE)) {
 			break;

@@ -63,7 +63,7 @@ hl_windowHandle hl_createWindow(const char* name, int32_t width, int32_t height,
 	return (hl_windowHandle)window;
 }
 
-bool hl_shouldWindowClose(hl_windowHandle window) {
+bool hl_windowShouldClose(hl_windowHandle window) {
 	return RGFW_window_shouldClose((RGFW_window*)window);
 }
 

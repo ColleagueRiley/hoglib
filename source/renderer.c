@@ -72,7 +72,7 @@ hl_fontHandle hl_loadFont(hl_windowHandle window, const char* name, uint32_t max
 	return (hl_rendererHandle)font;
 }
 
-void hl_freeFont(hl_windowHandle window, hl_fontHandle font) {
+void hl_releaseFont(hl_windowHandle window, hl_fontHandle font) {
 	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
     RFont_font_free(info->renderer_rfont, (RFont_font*)font);
@@ -104,7 +104,7 @@ hl_textureHandle hl_loadTextureFromImage(hl_windowHandle window, const char* fil
 	return (void*)texture;
 }
 
-void hl_freeTexture(hl_windowHandle window, hl_textureHandle texture) {
+void hl_releaseTexture(hl_windowHandle window, hl_textureHandle texture) {
 	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_deleteTexture(renderer, (size_t)texture);
 }
