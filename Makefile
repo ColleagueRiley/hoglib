@@ -35,7 +35,9 @@ LIBS = -Iinclude  -Lbuild ./build/libhoglib.a $(RGFW_LIBS)
 
 CFLAGS += -D HL_PLATFORM_RGFW
 
-EXAMPLES = examples/basics/basic
+EXAMPLES = examples/basics/basic \
+		   examples/basics/textures \
+		   examples/basics/text \
 
 
 all: $(TARGET) $(OUTDIR)/libhoglib.a $(EXAMPLES)
