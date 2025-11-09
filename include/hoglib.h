@@ -370,7 +370,7 @@ HL_API void hl_sleep(double seconds);
 
 
 /**!
-* @brief check all the events until there are none left and updates window structure attributes
+* @brief checks all events and updates internal structures
 */
 HL_API void hl_pollEvents(void);
 
@@ -529,7 +529,7 @@ HL_API hl_fontHandle hl_loadFont(hl_windowHandle window, const char* name, uint3
  * @param handle to the surface object
  * @param handle to the font resource object
 */
-HL_API void hl_freeFont(hl_windowHandle window, hl_fontHandle font);
+HL_API void hl_releaseFont(hl_windowHandle window, hl_fontHandle font);
 
 /**!
  * @brief create texture from raw image data
@@ -559,6 +559,27 @@ HL_API void hl_releaseTexture(hl_windowHandle window, hl_textureHandle texture);
  * @param handle to the texture resource
 */
 HL_API void hl_setTexture(hl_windowHandle window, hl_textureHandle texture);
+
+/**!
+ * @brief set font to use for text rendering
+ * @param handle renderer object
+ * @param handle to the font resource
+*/
+HL_API void hl_setFont(hl_windowHandle window, hl_fontHandle font);
+
+/**!
+ * @brief set font to use for text rendering based on the length of the string
+ * @param handle renderer object
+ * @param handle to the font resource
+*/
+HL_API void hl_drawTextLen(hl_windowHandle window, const char* text, size_t len, int32_t x, int32_t y, int32_t size);
+
+/**!
+ * @brief set font to use for text rendering
+ * @param handle renderer object
+ * @param handle to the font resource
+*/
+HL_API void hl_drawText(hl_windowHandle window, const char* text, int32_t x, int32_t y, int32_t size);
 
 /**!
  * @brief set draw foreground color

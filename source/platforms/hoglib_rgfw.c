@@ -17,7 +17,7 @@ hl_rendererHandle hl_getWindowRenderer(hl_windowHandle window) {
 }
 
 void hl_resizeHandler(RGFW_window* win, int32_t w, int32_t h)  {
-	hl_updateRendererSize(hl_getWindowRenderer(win));
+	hl_updateRendererSize(win);
 }
 
 hl_windowHandle hl_createWindowPlatform(const char* name, int32_t width, int32_t height, hl_windowFlags flags) {

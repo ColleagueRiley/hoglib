@@ -15,6 +15,7 @@
 
 typedef struct hl_rendererInfo {
 	RFont_renderer* renderer_rfont;
+	hl_fontHandle font;
 } hl_rendererInfo;
 
 hl_rendererHandle hl_initRenderer(uint32_t type, hl_windowHandle window) {
@@ -30,15 +31,13 @@ hl_rendererHandle hl_initRenderer(uint32_t type, hl_windowHandle window) {
 		default: break;
 	}
 
+	hl_setWindowRenderer(window, renderer);
 
 	hl_rendererInfo* info = (hl_rendererInfo*)malloc(sizeof(hl_rendererInfo));
 	info->renderer_rfont = RFont_RSGL_renderer_init(renderer);
 	renderer->userPtr = info;
 
-	hl_setWindowRenderer(window, renderer);
-
 	hl_updateRendererSize(window);
-
 
 	return (hl_rendererHandle)renderer;
 }
@@ -46,9 +45,12 @@ hl_rendererHandle hl_initRenderer(uint32_t type, hl_windowHandle window) {
 
 void hl_updateRendererSize(hl_windowHandle window) {
 	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
 
 	int32_t w, h;
 	hl_getWindowSize(window, &w, &h);
+
+	RFont_renderer_set_framebuffer(info->renderer_rfont, (u32)w, (u32)h);
 	RSGL_renderer_updateSize((RSGL_renderer*)renderer, w, h);
 	RSGL_renderer_viewport((RSGL_renderer*)renderer, RSGL_RECT(0, 0, w, h));
 }
@@ -67,7 +69,7 @@ hl_fontHandle hl_loadFont(hl_windowHandle window, const char* name, uint32_t max
 	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
 
-    RFont_font* font = RFont_font_init(info->renderer_rfont, name, maxHeight, maxHeight * 10, maxHeight * 20);
+    RFont_font* font = RFont_font_init(info->renderer_rfont, name, maxHeight, maxHeight * 100, maxHeight * 100);
 
 	return (hl_rendererHandle)font;
 }
@@ -133,6 +135,28 @@ void hl_clear(hl_windowHandle window, hl_color color) {
 void hl_setTexture(hl_windowHandle window, hl_textureHandle texture) {
 	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_setTexture(renderer, (RSGL_texture)texture);
+}
+
+void hl_setFont(hl_windowHandle window, hl_fontHandle font) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
+	info->font = font;
+}
+
+void hl_drawTextLen(hl_windowHandle window, const char* text, size_t len, int32_t x, int32_t y, int32_t size) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
+
+	assert(info->font);
+	RFont_draw_text_len(info->renderer_rfont, info->font, text, len, x, y, size, 0.0f);
+}
+
+void hl_drawText(hl_windowHandle window, const char* text, int32_t x, int32_t y, int32_t size) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	hl_rendererInfo* info = (hl_rendererInfo*)((RSGL_renderer*)renderer)->userPtr;
+
+	assert(info->font);
+	RFont_draw_text(info->renderer_rfont, info->font, text, (float)x, (float)y, (float)size);
 }
 
 void hl_setColor(hl_windowHandle window, hl_color color) {
