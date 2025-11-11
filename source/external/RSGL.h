@@ -1549,7 +1549,7 @@ i32 RSGL_drawLine(RSGL_renderer* renderer, RSGL_vec2D p1, RSGL_vec2D p2, u32 thi
 	data.verts = points;
 	data.texCoords = texPoints;
 	data.elements = elements;
-	data.elmCount = 4;
+	data.elmCount = 2;
 	data.vert_count = 2;
 
 	return RSGL_drawRawVerts(renderer, &data);

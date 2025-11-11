@@ -1,6 +1,6 @@
 #include <hoglib.h>
 
-int main() {
+int main(void) {
 	hl_windowHandle window = hl_createWindow("window", 800, 600, HL_RENDERER_GL_MODERN);
 
 	while (hl_windowShouldClose(window) == false) {

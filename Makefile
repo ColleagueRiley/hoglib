@@ -1,4 +1,3 @@
-
 CC = gcc
 INCLUDES = -I./include -I./source -I./source/external/ -I./source/external/renderers/
 CFLAGS = -Wall -fPIC $(INCLUDES)
@@ -40,9 +39,9 @@ EXAMPLES = examples/basics/basic \
 		   examples/basics/text \
 
 
-all: $(TARGET) $(OUTDIR)/libhoglib.a $(EXAMPLES)
+all: $(TARGET) $(OUTDIR)/libhoglib.a
 
-debug: all
+debug: all $(EXAMPLES)
 	@for exe in $(EXAMPLES); do \
 		echo "Running $$exe..."; \
 		./$$exe; \

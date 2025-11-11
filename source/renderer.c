@@ -132,6 +132,11 @@ void hl_clear(hl_windowHandle window, hl_color color) {
 	RSGL_renderer_clear(renderer, *(RSGL_color*)&color);
 }
 
+void hl_setTextureSource(hl_windowHandle window, hl_textureHandle texture, hl_rect rect) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	RSGL_renderer_setTextureSource(renderer, (RSGL_texture)texture, RSGL_RECT(rect.x, rect.y, rect.w, rect.h));
+}
+
 void hl_setTexture(hl_windowHandle window, hl_textureHandle texture) {
 	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_setTexture(renderer, (RSGL_texture)texture);
@@ -162,6 +167,11 @@ void hl_drawText(hl_windowHandle window, const char* text, int32_t x, int32_t y,
 void hl_setColor(hl_windowHandle window, hl_color color) {
 	hl_rendererHandle renderer = hl_getWindowRenderer(window);
 	RSGL_renderer_setColor(renderer, *(RSGL_color*)&color);
+}
+
+void hl_drawLine(hl_windowHandle window, hl_vec2D vec1, hl_vec2D vec2) {
+	hl_rendererHandle renderer = hl_getWindowRenderer(window);
+	RSGL_drawLine(renderer, RSGL_VEC2D(vec1.x, vec1.y), RSGL_VEC2D(vec2.x, vec2.y), 1);
 }
 
 void hl_drawRect(hl_windowHandle window, hl_rect rect) {

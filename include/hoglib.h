@@ -86,6 +86,18 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 
+/* math defines for help */
+#ifndef HL_PI /* math pi */
+    #define HL_PI 3.14159265358979323846f
+#endif
+#ifndef HL_DEG2RAD /* degree to radians  */
+    #define HL_DEG2RAD (float)(HL_PI / 180.0f)
+#endif
+#ifndef HL_RAD2DEG /* radians to degrees */
+    #define HL_RAD2DEG (float)(180.0f / HL_PI)
+#endif
+
+
 
 /*
  * Hoglib types, these are types that will be used by/for Hoglib
@@ -326,6 +338,10 @@ typedef void* hl_textureHandle;
 /* handle to font resource */
 typedef void* hl_fontHandle;
 
+typedef struct hl_vec2D { float x, y; } hl_vec2D;
+
+#define HL_VEC2D(x, y) (hl_vec2D){x, y}
+
 typedef struct hl_rect { float x, y, w, h; } hl_rect;
 
 #define HL_RECT(x, y, w, h) (hl_rect){(float)x, (float)y, (float)w, (float)h}
@@ -558,6 +574,13 @@ HL_API void hl_releaseTexture(hl_windowHandle window, hl_textureHandle texture);
  * @param handle renderer object
  * @param handle to the texture resource
 */
+HL_API void hl_setTextureSource(hl_windowHandle window, hl_textureHandle texture, hl_rect rect);
+
+/**!
+ * @brief set texture to use for rendering
+ * @param handle renderer object
+ * @param handle to the texture resource
+*/
 HL_API void hl_setTexture(hl_windowHandle window, hl_textureHandle texture);
 
 /**!
@@ -594,6 +617,14 @@ HL_API void hl_setColor(hl_windowHandle window, hl_color color);
  * @param rect object
 */
 HL_API void hl_drawRect(hl_windowHandle window, hl_rect rect);
+
+/**!
+ * @brief draw line to the surface
+ * @param handle to the surface object
+ * @param first endpoint object
+ * @param second endpoint object
+*/
+HL_API void hl_drawLine(hl_windowHandle window, hl_vec2D vec1, hl_vec2D vec2);
 
 #ifdef __cplusplus
 }
